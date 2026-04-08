@@ -13,7 +13,7 @@ const mockPrisma = {
 };
 
 const mockJwt = {
-  sign: jest.fn().mockReturnValue('mock.jwt.token'),
+  sign: jest.fn(),
 };
 
 describe('AuthService', () => {
@@ -30,6 +30,7 @@ describe('AuthService', () => {
 
     service = module.get<AuthService>(AuthService);
     jest.clearAllMocks();
+    mockJwt.sign.mockReturnValue('mock.jwt.token');
   });
 
   describe('register', () => {
@@ -51,7 +52,10 @@ describe('AuthService', () => {
       expect(result.email).toBe('test@test.com');
       expect(mockPrisma.tenant.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ email: 'test@test.com' }),
+          data: expect.objectContaining({
+            email: 'test@test.com',
+            passwordHash: expect.not.stringMatching('senha123'),
+          }),
         }),
       );
     });
@@ -82,6 +86,7 @@ describe('AuthService', () => {
       });
 
       expect(result.accessToken).toBe('mock.jwt.token');
+      expect(mockJwt.sign).toHaveBeenCalledWith({ sub: 'tenant-1', email: 'test@test.com' });
     });
 
     it('deve lançar UnauthorizedException para senha errada', async () => {
