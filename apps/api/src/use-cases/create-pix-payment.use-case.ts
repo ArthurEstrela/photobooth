@@ -4,12 +4,15 @@ import { Injectable } from '@nestjs/common';
 import { CreatePixPaymentDTO, PixPaymentResponse } from '@packages/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class CreatePixPaymentUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mpAdapter: MercadoPagoAdapter,
+    @InjectQueue('payment-expiration') private readonly paymentQueue: Queue,
   ) {}
 
   async execute(dto: CreatePixPaymentDTO): Promise<PixPaymentResponse> {
@@ -40,12 +43,19 @@ export class CreatePixPaymentUseCase {
       },
     });
 
-    // 4. Return formatted response to Totem
+    // 4. Add Job to BullMQ for expiration (2 minutes)
+    await this.paymentQueue.add(
+      'expire-payment',
+      { paymentId: payment.id, boothId: dto.boothId },
+      { delay: 2 * 60 * 1000 }, // 2 minutes in ms
+    );
+
+    // 5. Return formatted response to Totem
     return {
       paymentId: payment.id,
       qrCode: mpResponse.qrCode,
       qrCodeBase64: mpResponse.qrCodeBase64,
-      expiresIn: 3600, // MP default or custom
+      expiresIn: 120, // 2 minutes
     };
   }
 }

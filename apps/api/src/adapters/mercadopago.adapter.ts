@@ -1,0 +1,57 @@
+// apps/api/src/adapters/mercadopago.adapter.ts
+
+import { Injectable, Logger } from '@nestjs/common';
+import axios from 'axios';
+
+export interface MercadoPagoPixResponse {
+  externalId: number;
+  qrCode: string;
+  qrCodeBase64: string;
+  status: string;
+}
+
+@Injectable()
+export class MercadoPagoAdapter {
+  private readonly logger = new Logger(MercadoPagoAdapter.name);
+  private readonly apiUrl = 'https://api.mercadopago.com/v1';
+  private readonly accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+
+  async createPixPayment(data: {
+    amount: number;
+    description: string;
+    metadata: any;
+  }): Promise<MercadoPagoPixResponse> {
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/payments`,
+        {
+          transaction_amount: data.amount,
+          description: data.description,
+          payment_method_id: 'pix',
+          payer: {
+            email: 'test_user_123@testuser.com', // Placeholder for sandbox/production
+          },
+          metadata: data.metadata,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'X-Idempotency-Key': `${Date.now()}-${data.metadata.boothId}`,
+          },
+        },
+      );
+
+      const paymentData = response.data;
+
+      return {
+        externalId: paymentData.id,
+        qrCode: paymentData.point_of_interaction.transaction_data.qr_code,
+        qrCodeBase64: paymentData.point_of_interaction.transaction_data.qr_code_base64,
+        status: paymentData.status,
+      };
+    } catch (error: any) {
+      this.logger.error('Error creating Mercado Pago Pix payment', error.response?.data || error.message);
+      throw new Error('Failed to create Pix payment via Mercado Pago');
+    }
+  }
+}

@@ -65,4 +65,11 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(socketId).emit('payment_approved', payload);
     }
   }
+
+  sendPaymentExpired(boothId: string) {
+    const socketId = this.connectedBooths.get(boothId);
+    if (socketId) {
+      this.server.to(socketId).emit('payment_expired');
+    }
+  }
 }
