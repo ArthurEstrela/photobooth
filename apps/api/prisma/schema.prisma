@@ -35,13 +35,23 @@ model Event {
   id        String   @id @default(uuid())
   name      String
   price     Decimal
-  overlayUrl String? // URL for the PNG frame
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  templates Template[]
   payments  Payment[]
   photoSessions PhotoSession[]
+}
+
+model Template {
+  id         String   @id @default(uuid())
+  name       String
+  overlayUrl String   // URL for the PNG frame
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Payment {
