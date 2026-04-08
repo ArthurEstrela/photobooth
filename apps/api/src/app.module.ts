@@ -15,13 +15,15 @@ import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
 import { PhotoController } from './controllers/photo.controller';
 import { TenantController } from './controllers/tenant.controller';
 import { EventController } from './controllers/event.controller';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    AuthModule,
     BullModule.forRoot({
       redis: {
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST ?? 'localhost',
         port: Number(process.env.REDIS_PORT) || 6379,
       },
     }),

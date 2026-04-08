@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { TenantMetrics } from '../../../../packages/shared/src/types';
+import { TenantMetrics } from '@packages/shared';
 
 export const useMetrics = () => {
   return useQuery<TenantMetrics>({

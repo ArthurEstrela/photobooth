@@ -21,8 +21,7 @@ export const EventsPage: React.FC = () => {
     createMutation.mutate({
       name: formData.name,
       price: Number(formData.price),
-      overlayUrl: formData.overlayUrl,
-    }, {
+    } as Parameters<typeof createMutation.mutate>[0], {
       onSuccess: () => {
         setIsModalOpen(false);
         setFormData({ name: '', price: '', overlayUrl: '' });

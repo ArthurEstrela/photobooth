@@ -23,7 +23,7 @@ export const useDashboardSocket = (tenantId: string) => {
     });
 
     // When a payment is approved or session ends, refresh metrics
-    socket.on('payment_approved', (data) => {
+    socket.on('payment_approved', (data: unknown) => {
       console.log('Payment Approved Real-time Update', data);
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
     });
