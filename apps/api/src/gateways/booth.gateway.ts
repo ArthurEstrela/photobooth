@@ -10,56 +10,64 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { UseFilters, UseGuards } from '@nestjs/common';
-import { BoothState } from '@packages/shared';
+import { Logger } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { BoothStateUpdate } from '@packages/shared';
 
-@WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
-  namespace: 'booth',
-})
+@WebSocketGateway({ cors: { origin: '*' }, namespace: 'booth' })
 export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
-  private connectedBooths = new Map<string, string>(); // boothId -> socketId
+  private readonly logger = new Logger(BoothGateway.name);
+  private connectedBooths = new Map<string, string>(); // boothId → socketId
+
+  constructor(private readonly prisma: PrismaService) {}
 
   async handleConnection(client: Socket) {
-    const boothId = client.handshake.query.boothId as string;
-    const token = client.handshake.headers.authorization;
+    const boothId = client.handshake.query['boothId'] as string;
+    const authHeader = client.handshake.headers['authorization'];
+    const token = authHeader?.replace('Bearer ', '');
 
-    // TODO: Implement actual JWT/Token verification via BoothService
     if (!boothId || !token) {
       client.disconnect();
       return;
     }
 
+    const booth = await this.prisma.booth.findFirst({
+      where: { id: boothId, token },
+    });
+
+    if (!booth) {
+      this.logger.warn(`Connection rejected for booth ${boothId} — invalid token`);
+      client.disconnect();
+      return;
+    }
+
     this.connectedBooths.set(boothId, client.id);
-    console.log(`Booth connected: ${boothId}`);
+    this.logger.log(`Booth connected: ${boothId}`);
   }
 
   handleDisconnect(client: Socket) {
     const boothId = Array.from(this.connectedBooths.entries()).find(
-      ([_, id]) => id === client.id,
+      ([, id]) => id === client.id,
     )?.[0];
-    
+
     if (boothId) {
       this.connectedBooths.delete(boothId);
-      console.log(`Booth disconnected: ${boothId}`);
+      this.logger.log(`Booth disconnected: ${boothId}`);
     }
   }
 
   @SubscribeMessage('update_state')
   handleStateUpdate(
-    @MessageBody() data: { boothId: string; state: BoothState },
-    @ConnectedSocket() client: Socket,
+    @MessageBody() data: BoothStateUpdate,
+    @ConnectedSocket() _client: Socket,
   ) {
-    // Notify dashboard or other interested parties about the booth state change
-    console.log(`Booth ${data.boothId} updated state to ${data.state}`);
+    this.logger.log(`Booth ${data.boothId} → state: ${data.state}`);
   }
 
-  sendPaymentApproved(boothId: string, payload: any) {
+  sendPaymentApproved(boothId: string, payload: unknown) {
     const socketId = this.connectedBooths.get(boothId);
     if (socketId) {
       this.server.to(socketId).emit('payment_approved', payload);
