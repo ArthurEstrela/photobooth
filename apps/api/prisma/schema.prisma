@@ -1,0 +1,73 @@
+// apps/api/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  booths    Booth[]
+  events    Event[]
+}
+
+model Booth {
+  id        String   @id @default(uuid())
+  name      String
+  token     String   @unique // Access token for Totem
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments  Payment[]
+  photoSessions PhotoSession[]
+}
+
+model Event {
+  id        String   @id @default(uuid())
+  name      String
+  price     Decimal
+  overlayUrl String? // URL for the PNG frame
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments  Payment[]
+  photoSessions PhotoSession[]
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  externalId      String?  @unique // MP payment ID
+  qrCode          String?
+  qrCodeBase64    String?
+  amount          Decimal
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED
+  boothId         String
+  booth           Booth    @relation(fields: [boothId], references: [id])
+  eventId         String
+  event           Event    @relation(fields: [eventId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  photoSession    PhotoSession?
+}
+
+model PhotoSession {
+  id        String   @id @default(uuid())
+  paymentId String   @unique
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  boothId   String
+  booth     Booth    @relation(fields: [boothId], references: [id])
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id])
+  photoUrls String[] // S3/Firebase URLs
+  createdAt DateTime @default(now())
+}
