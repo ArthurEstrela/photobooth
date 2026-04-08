@@ -27,7 +27,9 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     const boothId = client.handshake.query['boothId'] as string;
     const authHeader = client.handshake.headers['authorization'];
-    const token = authHeader?.replace('Bearer ', '');
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
 
     if (!boothId || !token) {
       client.disconnect();
