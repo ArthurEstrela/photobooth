@@ -91,9 +91,10 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
 
   const completeSession = useCallback(
     async (stripDataUrl: string) => {
-      if ((window as any).totemAPI) {
-        (window as any).totemAPI.saveOfflinePhoto({ sessionId, photoBase64: stripDataUrl });
-        (window as any).totemAPI.printPhoto();
+      const totemAPI = (window as any).totemAPI;
+      if (sessionId && totemAPI?.saveOfflinePhoto && totemAPI?.printPhoto) {
+        totemAPI.saveOfflinePhoto({ sessionId, photoBase64: stripDataUrl });
+        totemAPI.printPhoto();
       }
       transition(BoothState.DELIVERY);
       setTimeout(() => {
