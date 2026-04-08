@@ -6,10 +6,15 @@ import { Logger } from 'electron-log'; // Assuming logger or console
 
 const API_URL = process.env.VITE_API_URL || 'http://localhost:3000';
 
+let isSyncing = false;
+
 export function startSyncEngine() {
   console.log('Sync Engine started...');
 
   setInterval(async () => {
+    if (isSyncing) return;
+    isSyncing = true;
+
     try {
       // 1. Find PENDING photos in SQLite
       const pendingPhotos = db.prepare("SELECT * FROM offline_photos WHERE status = 'PENDING' LIMIT 5").all() as any[];
@@ -40,6 +45,8 @@ export function startSyncEngine() {
       }
     } catch (dbError) {
       console.error('Sync Engine: Database error', dbError);
+    } finally {
+      isSyncing = false;
     }
   }, 10000); // Run every 10 seconds
 }

@@ -37,8 +37,13 @@ export class S3StorageAdapter {
         })
       );
 
-      const url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
-      this.logger.log(`Photo uploaded to S3: ${url}`);
+      let url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
+      
+      if (process.env.AWS_CLOUDFRONT_DOMAIN) {
+        url = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${fileName}`;
+      }
+
+      this.logger.log(`Photo uploaded: ${url}`);
       return url;
     } catch (error) {
       this.logger.error('Error uploading to S3', error);

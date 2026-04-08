@@ -1,6 +1,7 @@
 // apps/totem/electron/main.ts
 
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'path';
 import { initDatabase, savePhotoOffline, IOfflinePhoto } from './database';
 import { startSyncEngine } from './sync-engine';
@@ -37,6 +38,7 @@ app.whenReady().then(() => {
   initDatabase();
   startSyncEngine();
   createWindow();
+  autoUpdater.checkForUpdatesAndNotify();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

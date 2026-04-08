@@ -29,5 +29,12 @@
   },
   "extraMetadata": {
     "main": "electron/main.js"
-  }
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "seu-usuario",
+      "repo": "seu-repo"
+    }
+  ]
 }
