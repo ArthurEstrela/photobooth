@@ -1,80 +1,119 @@
-// apps/totem/src/hooks/useBoothMachine.ts
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { BoothState, PaymentApprovedEvent } from '@packages/shared';
+import axios from 'axios';
+import {
+  BoothState,
+  OfflineMode,
+  BoothConfigDto,
+  PixPaymentResponse,
+  PaymentApprovedEvent,
+  PaymentExpiredEvent,
+} from '@packages/shared';
 
-export function useBoothMachine(boothId: string, token: string) {
+export function useBoothMachine(boothId: string, token: string, config: BoothConfigDto | null) {
   const [state, setState] = useState<BoothState>(BoothState.IDLE);
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [currentPayment, setCurrentPayment] = useState<any>(null);
+  const [currentPayment, setCurrentPayment] = useState<PixPaymentResponse | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+  const socketRef = useRef<Socket | null>(null);
 
-  // Initialize WebSocket connection
+  const transition = useCallback(
+    (newState: BoothState) => {
+      setState(newState);
+      socketRef.current?.emit('update_state', { boothId, state: newState });
+    },
+    [boothId],
+  );
+
   useEffect(() => {
-    const s = io(`${process.env.VITE_API_URL}/booth`, {
+    const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+    const socket = io(`${apiUrl}/booth`, {
       query: { boothId },
       extraHeaders: { Authorization: `Bearer ${token}` },
     });
 
-    s.on('connect', () => {
-      console.log('Connected to API WebSocket');
-    });
-
-    s.on('payment_approved', (data: PaymentApprovedEvent) => {
-      console.log('Payment Approved!', data);
+    socket.on('payment_approved', (data: PaymentApprovedEvent) => {
+      setSessionId(data.sessionId);
       transition(BoothState.IN_SESSION);
     });
 
-    setSocket(s);
-
-    return () => {
-      s.disconnect();
-    };
-  }, [boothId, token]);
-
-  // Handle state transitions
-  const transition = useCallback((newState: BoothState) => {
-    setState(newState);
-    if (socket) {
-      socket.emit('update_state', { boothId, state: newState });
-    }
-  }, [socket, boothId]);
-
-  const startPayment = async (eventId: string, amount: number) => {
-    transition(BoothState.WAITING_PAYMENT);
-    try {
-      // TODO: Call API to create payment
-      // const res = await api.post('/payments', { boothId, eventId, amount });
-      // setCurrentPayment(res.data);
-    } catch (error) {
-      console.error('Failed to create payment', error);
+    socket.on('payment_expired', (_data: PaymentExpiredEvent) => {
+      setCurrentPayment(null);
       transition(BoothState.IDLE);
-    }
-  };
+    });
 
-  const startSession = () => {
-    // Logic for WebRTC / 3-2-1 Countdown
-    transition(BoothState.IN_SESSION);
-  };
+    socketRef.current = socket;
+    return () => socket.disconnect();
+  }, [boothId, token, transition]);
 
-  const completeSession = async (photoData: any) => {
-    transition(BoothState.PROCESSING);
-    // TODO: Apply frame filter
-    
-    transition(BoothState.DELIVERY);
-    // TODO: Silent print and async upload
-    
-    // OFFLINE-FIRST: Save to SQLite local if upload fails
-    // retryQueue.push({ ...photoData, timestamp: Date.now() });
+  const startPayment = useCallback(
+    async (eventId: string, templateId: string | undefined, amount: number) => {
+      transition(BoothState.WAITING_PAYMENT);
+      const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+      try {
+        const res = await axios.post<PixPaymentResponse>(`${apiUrl}/payments/pix`, {
+          boothId,
+          eventId,
+          templateId,
+          amount,
+        });
+        setCurrentPayment(res.data);
+      } catch {
+        const mode = config?.offlineMode ?? OfflineMode.BLOCK;
+        if (mode === OfflineMode.DEMO) {
+          setSessionId(`offline-${Date.now()}`);
+          transition(BoothState.IN_SESSION);
+        } else if (mode === OfflineMode.CREDITS && (config?.offlineCredits ?? 0) > 0) {
+          setSessionId(`offline-${Date.now()}`);
+          transition(BoothState.IN_SESSION);
+        } else {
+          transition(BoothState.IDLE);
+        }
+      }
+    },
+    [boothId, config, transition],
+  );
 
-    setTimeout(() => transition(BoothState.IDLE), 5000);
-  };
+  const onPhotoTaken = useCallback(
+    (photoDataUrl: string, totalPhotoCount: number) => {
+      setCapturedPhotos((prev) => {
+        const next = [...prev, photoDataUrl];
+        if (next.length >= totalPhotoCount) {
+          transition(BoothState.PROCESSING);
+        } else {
+          transition(BoothState.COUNTDOWN);
+        }
+        return next;
+      });
+    },
+    [transition],
+  );
+
+  const completeSession = useCallback(
+    async (stripDataUrl: string) => {
+      if ((window as any).totemAPI) {
+        (window as any).totemAPI.saveOfflinePhoto({ sessionId, photoBase64: stripDataUrl });
+        (window as any).totemAPI.printPhoto();
+      }
+      transition(BoothState.DELIVERY);
+      setTimeout(() => {
+        setCapturedPhotos([]);
+        setCurrentPayment(null);
+        setSessionId(null);
+        transition(BoothState.IDLE);
+      }, 8000);
+    },
+    [sessionId, transition],
+  );
 
   return {
     state,
+    socket: socketRef.current,
     currentPayment,
+    sessionId,
+    capturedPhotos,
     startPayment,
-    startSession,
+    onPhotoTaken,
     completeSession,
   };
 }
