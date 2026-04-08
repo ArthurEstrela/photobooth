@@ -2,18 +2,34 @@
 
 import axios from 'axios';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
 });
 
-// For development simplicity, let's inject a tenantId if not present
-// In a real app, this would be handled by auth/context
+// Inject JWT token into all requests
 api.interceptors.request.use((config) => {
-  const url = new URL(config.url || '', config.baseURL);
-  if (!url.searchParams.has('tenantId')) {
-    config.params = { ...config.params, tenantId: localStorage.getItem('tenantId') || '' };
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+// Redirect to /login on 401
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      window.location.pathname !== '/login'
+    ) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('tenantId');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  },
+);
 
 export default api;
