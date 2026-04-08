@@ -47,7 +47,7 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "@packages/shared": "<rootDir>/../../packages/shared/src/types.ts"
+      "@packages/shared": "<rootDir>/../../../packages/shared/src/types.ts"
     },
     "collectCoverageFrom": ["**/*.(t|j)s"],
     "coverageDirectory": "../coverage",

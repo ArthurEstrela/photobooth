@@ -15,6 +15,7 @@ import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
 import { PhotoController } from './controllers/photo.controller';
 import { TenantController } from './controllers/tenant.controller';
 import { EventController } from './controllers/event.controller';
+import { BoothsController } from './controllers/booths.controller';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
@@ -31,7 +32,7 @@ import { AuthModule } from './auth/auth.module';
       name: 'payment-expiration',
     }),
   ],
-  controllers: [PaymentController, PhotoController, TenantController, EventController],
+  controllers: [PaymentController, PhotoController, TenantController, EventController, BoothsController],
   providers: [
     PrismaService,
     BoothGateway,

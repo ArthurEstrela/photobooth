@@ -191,3 +191,13 @@ export interface TenantMetrics {
   activeBooths: number;
 }
 
+export interface BoothEventResponseDto {
+  event: {
+    id: string;
+    name: string;
+    price: number;
+    photoCount: 1 | 2 | 4;
+  };
+  templates: ITemplate[];
+}
+
