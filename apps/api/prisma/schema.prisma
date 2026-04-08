@@ -9,45 +9,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Plan {
+  id                  String   @id @default(uuid())
+  name                String   // FREE, STARTER, PRO, ENTERPRISE
+  maxBooths           Int
+  maxSessionsPerMonth Int
+  tenants             Tenant[]
+  createdAt           DateTime @default(now())
+}
+
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  booths    Booth[]
-  events    Event[]
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  logoUrl      String?
+  primaryColor String?
+  brandName    String?
+  planId       String?
+  plan         Plan?    @relation(fields: [planId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  booths       Booth[]
+  events       Event[]
 }
 
 model Booth {
-  id        String   @id @default(uuid())
-  name      String
-  token     String   @unique // Access token for Totem
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  payments  Payment[]
-  photoSessions PhotoSession[]
+  id                  String   @id @default(uuid())
+  name                String
+  token               String   @unique
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  offlineMode         String   @default("BLOCK")
+  offlineCredits      Int      @default(0)
+  demoSessionsPerHour Int      @default(3)
+  cameraSound         Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  payments            Payment[]
+  photoSessions       PhotoSession[]
 }
 
 model Event {
-  id        String   @id @default(uuid())
-  name      String
-  price     Decimal
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  templates Template[]
-  payments  Payment[]
+  id            String     @id @default(uuid())
+  name          String
+  price         Decimal
+  photoCount    Int        @default(1)
+  tenantId      String
+  tenant        Tenant     @relation(fields: [tenantId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  templates     Template[]
+  payments      Payment[]
   photoSessions PhotoSession[]
 }
 
 model Template {
   id         String   @id @default(uuid())
   name       String
-  overlayUrl String   // URL for the PNG frame
+  overlayUrl String
   eventId    String
   event      Event    @relation(fields: [eventId], references: [id])
   createdAt  DateTime @default(now())
@@ -55,19 +75,19 @@ model Template {
 }
 
 model Payment {
-  id              String   @id @default(uuid())
-  externalId      String?  @unique // MP payment ID
-  qrCode          String?
-  qrCodeBase64    String?
-  amount          Decimal
-  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED
-  boothId         String
-  booth           Booth    @relation(fields: [boothId], references: [id])
-  eventId         String
-  event           Event    @relation(fields: [eventId], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  photoSession    PhotoSession?
+  id           String        @id @default(uuid())
+  externalId   String?       @unique
+  qrCode       String?
+  qrCodeBase64 String?
+  amount       Decimal
+  status       String        @default("PENDING")
+  boothId      String
+  booth        Booth         @relation(fields: [boothId], references: [id])
+  eventId      String
+  event        Event         @relation(fields: [eventId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  photoSession PhotoSession?
 }
 
 model PhotoSession {
@@ -78,6 +98,6 @@ model PhotoSession {
   booth     Booth    @relation(fields: [boothId], references: [id])
   eventId   String
   event     Event    @relation(fields: [eventId], references: [id])
-  photoUrls String[] // S3/Firebase URLs
+  photoUrls String[]
   createdAt DateTime @default(now())
 }
