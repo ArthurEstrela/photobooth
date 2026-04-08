@@ -47,7 +47,7 @@ O pacote existe no monorepo mas está vazio. Torna-se o **contrato central** de 
 **DTOs compartilhados:**
 - `CreatePixPaymentDto`: `{ boothId, eventId, templateId, amount }`
 - `SyncPhotoDto`: `{ sessionId, photoBase64 }`
-- `BoothConfigDto`: `{ offlineMode, offlineCredits, branding: { logoUrl, primaryColor, brandName } }`
+- `BoothConfigDto`: `{ offlineMode, offlineCredits, demoSessionsPerHour: number, cameraSound: boolean, branding: { logoUrl, primaryColor, brandName } }`
 
 **Tipos de domínio:** Interfaces `ITenant`, `IBooth`, `IEvent`, `ITemplate`, `IPayment`, `IPhotoSession` — independentes do Prisma.
 
@@ -103,10 +103,10 @@ Dois novos estados:
 Novo componente `<CountdownOverlay>`:
 1. Ao receber `payment_approved` via WebSocket, inicia countdown
 2. Exibe "3... 2... 1..." com animação de escala + pulso (Tailwind + CSS keyframes)
-3. Flash de tela branca simulando flash de câmera
-4. Dispara `capturePhoto()` no `CameraEngine`
+3. Flash de tela branca simulando flash de câmera — transição para estado `CAPTURING`
+4. Estado `CAPTURING`: dispara `capturePhoto()` no `CameraEngine`, transição imediata para `PROCESSING`
 
-Som de câmera configurável por tenant (pode ser silencioso).
+Som de câmera controlado por `cameraSound: boolean` no `BoothConfigDto` (padrão: `true`).
 
 ### Multi-foto por Sessão
 
@@ -130,6 +130,7 @@ Comportamentos:
 `useBoothMachine` detecta perda de conexão via `socket.on('disconnect')` e aplica a regra.
 
 No modo `CREDITS`: SQLite local mantém tabela `booth_credits` com saldo. Cada sessão offline debita 1 crédito. Saldo recarregável via dashboard pelo operador.
+No modo `DEMO`: `demoSessionsPerHour` (do `BoothConfigDto`) define quantas sessões gratuitas por hora são liberadas. Contagem mantida localmente no SQLite.
 
 ### White-label no Totem
 
@@ -259,4 +260,4 @@ model Plan {
 15. Dashboard `/` — KPIs reais (remove hardcode)
 16. `GET /metrics` na API
 17. Página pública `/p/:sessionId` — polimento
-18. Testes críticos (fluxo de pagamento, sync engine)
+18. Testes de integração: fluxo PIX completo (create → webhook → approved → session), sync engine (SQLite → S3 com falha de rede simulada), expiração de pagamento via BullMQ
