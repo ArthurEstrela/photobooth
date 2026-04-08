@@ -45,3 +45,18 @@ export interface PhotoSessionDTO {
   paymentId: string;
   photoUrls: string[];
 }
+
+export interface Event {
+  id: string;
+  name: string;
+  price: number;
+  overlayUrl?: string;
+  tenantId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantMetrics {
+  totalRevenue: number;
+  totalSessions: number;
+}

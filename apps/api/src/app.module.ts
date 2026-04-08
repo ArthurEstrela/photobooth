@@ -13,6 +13,8 @@ import { PaymentController } from './controllers/payment.controller';
 import { S3StorageAdapter } from './adapters/storage/s3.adapter';
 import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
 import { PhotoController } from './controllers/photo.controller';
+import { TenantController } from './controllers/tenant.controller';
+import { EventController } from './controllers/event.controller';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { PhotoController } from './controllers/photo.controller';
       name: 'payment-expiration',
     }),
   ],
-  controllers: [PaymentController, PhotoController],
+  controllers: [PaymentController, PhotoController, TenantController, EventController],
   providers: [
     PrismaService,
     BoothGateway,
