@@ -3,6 +3,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { initDatabase, savePhotoOffline, IOfflinePhoto } from './database';
+import { startSyncEngine } from './sync-engine';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -34,6 +35,7 @@ function createWindow() {
 // 1. Initialize SQLite on app ready
 app.whenReady().then(() => {
   initDatabase();
+  startSyncEngine();
   createWindow();
 
   app.on('activate', () => {

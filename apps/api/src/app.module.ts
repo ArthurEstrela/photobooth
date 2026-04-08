@@ -10,6 +10,9 @@ import { CreatePixPaymentUseCase } from './use-cases/create-pix-payment.use-case
 import { ProcessWebhookUseCase } from './use-cases/process-webhook.use-case';
 import { PaymentExpirationProcessor } from './workers/payment-expiration.processor';
 import { PaymentController } from './controllers/payment.controller';
+import { S3StorageAdapter } from './adapters/storage/s3.adapter';
+import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
+import { PhotoController } from './controllers/photo.controller';
 
 @Module({
   imports: [
@@ -24,7 +27,7 @@ import { PaymentController } from './controllers/payment.controller';
       name: 'payment-expiration',
     }),
   ],
-  controllers: [PaymentController],
+  controllers: [PaymentController, PhotoController],
   providers: [
     PrismaService,
     BoothGateway,
@@ -32,6 +35,8 @@ import { PaymentController } from './controllers/payment.controller';
     CreatePixPaymentUseCase,
     ProcessWebhookUseCase,
     PaymentExpirationProcessor,
+    S3StorageAdapter,
+    SyncPhotoUseCase,
   ],
 })
 export class AppModule {}
