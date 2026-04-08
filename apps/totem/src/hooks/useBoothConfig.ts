@@ -8,10 +8,12 @@ export function useBoothConfig(boothId: string, token: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
     axios
       .get<BoothConfigDto>(`${apiUrl}/booths/${boothId}/config`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       })
       .then((res) => {
         setConfig(res.data);
@@ -22,10 +24,12 @@ export function useBoothConfig(boothId: string, token: string) {
           );
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
         setError('Failed to load booth config');
       })
       .finally(() => setIsLoading(false));
+    return () => controller.abort();
   }, [boothId, token]);
 
   return { config, isLoading, error };
