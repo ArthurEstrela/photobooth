@@ -6,35 +6,50 @@ import { DashboardLayout } from './components/DashboardLayout';
 import { Home } from './pages/Home';
 import { EventsPage } from './pages/EventsPage';
 import { GuestPhoto } from './pages/GuestPhoto';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { useDashboardSocket } from './hooks/useDashboardSocket';
 
 const queryClient = new QueryClient();
 
+// Initializes WebSocket — must be inside AuthProvider
+function DashboardSocketInit() {
+  const { tenantId } = useAuth();
+  useDashboardSocket(tenantId ?? '');
+  return null;
+}
+
 function AppContent() {
   const location = useLocation();
-  const isPublicRoute = location.pathname.startsWith('/p/');
-  const tenantId = localStorage.getItem('tenantId') || '';
+  const isPublic =
+    location.pathname.startsWith('/p/') ||
+    location.pathname === '/login' ||
+    location.pathname === '/register';
 
-  // Initialize Real-time updates for dashboard
-  useDashboardSocket(tenantId);
-
-  if (isPublicRoute) {
+  if (isPublic) {
     return (
       <Routes>
         <Route path="/p/:sessionId" element={<GuestPhoto />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       </Routes>
     );
   }
 
   return (
-    <DashboardLayout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/gallery" element={<div>Galeria em breve...</div>} />
-        <Route path="/booths" element={<div>Cabines em breve...</div>} />
-      </Routes>
-    </DashboardLayout>
+    <ProtectedRoute>
+      <DashboardSocketInit />
+      <DashboardLayout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/gallery" element={<div className="p-8 text-gray-500">Galeria em breve...</div>} />
+          <Route path="/booths" element={<div className="p-8 text-gray-500">Cabines em breve...</div>} />
+        </Routes>
+      </DashboardLayout>
+    </ProtectedRoute>
   );
 }
 
@@ -42,7 +57,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
