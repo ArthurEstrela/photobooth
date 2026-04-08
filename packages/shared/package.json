@@ -1,6 +1,7 @@
 {
-  "name": "@photobooth/shared",
+  "name": "@packages/shared",
   "version": "1.0.0",
   "private": true,
-  "main": "src/types.ts"
+  "main": "src/types.ts",
+  "types": "src/types.ts"
 }
