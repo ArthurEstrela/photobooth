@@ -5,12 +5,16 @@ import {
   Headers,
   UnauthorizedException,
   NotFoundException,
+  InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothConfigDto, BoothEventResponseDto, OfflineMode } from '@packages/shared';
 
 @Controller('booths')
 export class BoothsController {
+  private readonly logger = new Logger(BoothsController.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   private extractToken(auth: string | undefined): string | undefined {
@@ -23,13 +27,23 @@ export class BoothsController {
     @Headers('authorization') auth: string,
   ): Promise<BoothConfigDto> {
     const token = this.extractToken(auth);
-    if (!token) throw new UnauthorizedException();
+    if (!token) {
+      this.logger.warn(`Unauthorized booth config request: boothId=${id}`);
+      throw new UnauthorizedException();
+    }
 
     const booth = await this.prisma.booth.findFirst({
       where: { id, token },
       include: { tenant: true },
     });
-    if (!booth) throw new UnauthorizedException();
+    if (!booth) {
+      this.logger.warn(`Unauthorized booth config request: boothId=${id}`);
+      throw new UnauthorizedException();
+    }
+
+    if (!Object.values(OfflineMode).includes(booth.offlineMode as OfflineMode)) {
+      throw new InternalServerErrorException(`Unknown offlineMode: ${booth.offlineMode}`);
+    }
 
     return {
       offlineMode: booth.offlineMode as OfflineMode,
@@ -50,10 +64,16 @@ export class BoothsController {
     @Headers('authorization') auth: string,
   ): Promise<BoothEventResponseDto> {
     const token = this.extractToken(auth);
-    if (!token) throw new UnauthorizedException();
+    if (!token) {
+      this.logger.warn(`Unauthorized booth event request: boothId=${id}`);
+      throw new UnauthorizedException();
+    }
 
     const booth = await this.prisma.booth.findFirst({ where: { id, token } });
-    if (!booth) throw new UnauthorizedException();
+    if (!booth) {
+      this.logger.warn(`Unauthorized booth event request: boothId=${id}`);
+      throw new UnauthorizedException();
+    }
 
     const event = await this.prisma.event.findFirst({
       where: { tenantId: booth.tenantId },
@@ -66,7 +86,7 @@ export class BoothsController {
       event: {
         id: event.id,
         name: event.name,
-        price: Number(event.price),
+        price: event.price.toNumber(),
         photoCount: event.photoCount as 1 | 2 | 4,
       },
       templates: event.templates,

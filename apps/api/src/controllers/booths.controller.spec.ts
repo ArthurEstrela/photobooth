@@ -68,7 +68,7 @@ describe('BoothsController', () => {
       mockPrisma.event.findFirst.mockResolvedValue({
         id: 'event-1',
         name: 'Casamento',
-        price: 25.0,
+        price: { toNumber: () => 25.0 },
         photoCount: 2,
         templates: [{ id: 't1', name: 'Rosa', overlayUrl: '/frames/rosa.png', eventId: 'event-1', createdAt: new Date(), updatedAt: new Date() }],
       });
@@ -85,6 +85,13 @@ describe('BoothsController', () => {
       mockPrisma.event.findFirst.mockResolvedValue(null);
       await expect(controller.getBoothEvent('booth-1', 'Bearer secret')).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('throws UnauthorizedException for invalid token in getBoothEvent', async () => {
+      mockPrisma.booth.findFirst.mockResolvedValue(null);
+      await expect(controller.getBoothEvent('booth-1', 'Bearer wrong')).rejects.toThrow(
+        UnauthorizedException,
       );
     });
   });
