@@ -191,13 +191,3 @@ export interface TenantMetrics {
   activeBooths: number;
 }
 
-export interface Event {
-  id: string;
-  name: string;
-  price: number;
-  photoCount: number;
-  overlayUrl?: string;
-  tenantId: string;
-  createdAt: string;
-  updatedAt: string;
-}

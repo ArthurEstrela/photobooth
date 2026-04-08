@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "electron/main.js",
   "dependencies": {
+    "@packages/shared": "*",
     "axios": "^1.6.0",
     "better-sqlite3": "^9.0.0",
     "electron-log": "^5.0.0",
