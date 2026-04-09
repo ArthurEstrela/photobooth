@@ -34,6 +34,8 @@ export class SyncPhotoUseCase {
         photoUrl,
         tenantId: session.booth.tenantId,
       });
+    } else {
+      this.logger.warn(`PhotoSession ${dto.sessionId} not found for dashboard broadcast`);
     }
 
     return { success: true, url: photoUrl };

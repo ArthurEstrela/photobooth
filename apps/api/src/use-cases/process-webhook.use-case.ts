@@ -44,11 +44,15 @@ export class ProcessWebhookUseCase {
     // Notify totem
     this.boothGateway.sendPaymentApproved(payment.boothId, eventPayload);
     // Notify dashboard
-    this.dashboardGateway.broadcastToTenant(
-      payment.booth.tenantId,
-      'payment_approved',
-      eventPayload,
-    );
+    if (payment.booth) {
+      this.dashboardGateway.broadcastToTenant(
+        payment.booth.tenantId,
+        'payment_approved',
+        eventPayload,
+      );
+    } else {
+      this.logger.warn(`Booth not found for payment ${payment.id} — dashboard not notified`);
+    }
 
     this.logger.log(`Payment approved and notified for booth: ${payment.boothId}`);
   }
