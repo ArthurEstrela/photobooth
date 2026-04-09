@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 export function useWebcam() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +23,7 @@ export function useWebcam() {
       };
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = mediaStream;
       setStream(mediaStream);
 
       if (videoRef.current) {
@@ -40,7 +42,8 @@ export function useWebcam() {
   useEffect(() => {
     startCamera();
     return () => {
-      stream?.getTracks().forEach(track => track.stop());
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     };
   }, []);
 

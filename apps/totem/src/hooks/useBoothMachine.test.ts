@@ -80,19 +80,6 @@ describe('useBoothMachine', () => {
     expect(result.current.state).toBe(BoothState.IN_SESSION);
   });
 
-  it('transitions to PROCESSING after onPhotoTaken called photoCount times', () => {
-    const { result } = renderHook(() =>
-      useBoothMachine('booth-1', 'token-abc', mockConfig),
-    );
-
-    act(() => result.current.onPhotoTaken('data:photo1', 2));
-    expect(result.current.state).toBe(BoothState.COUNTDOWN);
-
-    act(() => result.current.onPhotoTaken('data:photo2', 2));
-    expect(result.current.state).toBe(BoothState.PROCESSING);
-    expect(result.current.capturedPhotos).toHaveLength(2);
-  });
-
   it('transitions to DELIVERY and resets to IDLE after completeSession', async () => {
     vi.useFakeTimers();
     const { result } = renderHook(() =>

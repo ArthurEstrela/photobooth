@@ -14,8 +14,8 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
   const [state, setState] = useState<BoothState>(BoothState.IDLE);
   const [currentPayment, setCurrentPayment] = useState<PixPaymentResponse | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const socketRef = useRef<Socket | null>(null);
+  const deliveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const transition = useCallback(
     (newState: BoothState) => {
@@ -76,21 +76,6 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
     [boothId, config, transition],
   );
 
-  const onPhotoTaken = useCallback(
-    (photoDataUrl: string, totalPhotoCount: number) => {
-      setCapturedPhotos((prev) => {
-        const next = [...prev, photoDataUrl];
-        if (next.length >= totalPhotoCount) {
-          transition(BoothState.PROCESSING);
-        } else {
-          transition(BoothState.COUNTDOWN);
-        }
-        return next;
-      });
-    },
-    [transition],
-  );
-
   const completeSession = useCallback(
     async (stripDataUrl: string) => {
       const totemAPI = (window as any).totemAPI;
@@ -99,8 +84,7 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
         totemAPI.printPhoto();
       }
       transition(BoothState.DELIVERY);
-      setTimeout(() => {
-        setCapturedPhotos([]);
+      deliveryTimeoutRef.current = setTimeout(() => {
         setCurrentPayment(null);
         setSessionId(null);
         transition(BoothState.IDLE);
@@ -109,14 +93,20 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
     [sessionId, transition],
   );
 
+  useEffect(() => {
+    return () => {
+      if (deliveryTimeoutRef.current) {
+        clearTimeout(deliveryTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return {
     state,
     socket: socketRef.current,
     currentPayment,
     sessionId,
-    capturedPhotos,
     startPayment,
-    onPhotoTaken,
     completeSession,
   };
 }

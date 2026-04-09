@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BoothsController } from './booths.controller';
 import { PrismaService } from '../prisma/prisma.service';
-import { UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { UnauthorizedException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { OfflineMode } from '@packages/shared';
 
 const mockPrisma = {
@@ -56,6 +56,22 @@ describe('BoothsController', () => {
         UnauthorizedException,
       );
     });
+
+    it('throws InternalServerErrorException for unknown offlineMode value', async () => {
+      mockPrisma.booth.findFirst.mockResolvedValue({
+        id: 'booth-1',
+        token: 'secret',
+        offlineMode: 'LEGACY',
+        offlineCredits: 0,
+        demoSessionsPerHour: 3,
+        cameraSound: true,
+        tenant: { logoUrl: null, primaryColor: null, brandName: null },
+      });
+
+      await expect(controller.getConfig('booth-1', 'Bearer secret')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+    });
   });
 
   describe('GET /booths/:id/event', () => {
@@ -92,6 +108,21 @@ describe('BoothsController', () => {
       mockPrisma.booth.findFirst.mockResolvedValue(null);
       await expect(controller.getBoothEvent('booth-1', 'Bearer wrong')).rejects.toThrow(
         UnauthorizedException,
+      );
+    });
+
+    it('throws InternalServerErrorException for invalid photoCount', async () => {
+      mockPrisma.booth.findFirst.mockResolvedValue({ id: 'booth-1', token: 'secret', tenantId: 'tenant-1' });
+      mockPrisma.event.findFirst.mockResolvedValue({
+        id: 'event-1',
+        name: 'Test',
+        price: { toNumber: () => 25 },
+        photoCount: 3,
+        templates: [],
+      });
+
+      await expect(controller.getBoothEvent('booth-1', 'Bearer secret')).rejects.toThrow(
+        InternalServerErrorException,
       );
     });
   });

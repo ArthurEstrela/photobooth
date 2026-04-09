@@ -82,6 +82,11 @@ export class BoothsController {
     });
     if (!event) throw new NotFoundException('No active event found for this booth');
 
+    const validPhotoCounts = [1, 2, 4] as const;
+    if (!validPhotoCounts.includes(event.photoCount as 1 | 2 | 4)) {
+      throw new InternalServerErrorException(`Invalid photoCount: ${event.photoCount}`);
+    }
+
     return {
       event: {
         id: event.id,
