@@ -111,5 +111,24 @@ describe('BoothGateway', () => {
         'tenant-1', 'booth_status', { boothId: 'booth-1', online: true }
       );
     });
+
+    it('broadcasts booth_status offline when booth disconnects', async () => {
+      const mockDashboard = gateway['dashboardGateway'] as unknown as { broadcastToTenant: jest.Mock };
+      const mockPrismaLocal = gateway['prisma'] as unknown as { booth: { findFirst: jest.Mock } };
+      mockPrismaLocal.booth.findFirst.mockResolvedValueOnce({
+        id: 'booth-1', token: 'tok', tenantId: 'tenant-1',
+      });
+      const client = {
+        id: 'sock-1',
+        handshake: { query: { boothId: 'booth-1' }, headers: { authorization: 'Bearer tok' } },
+        disconnect: jest.fn(),
+      };
+      await gateway.handleConnection(client as any);
+      jest.clearAllMocks();
+      gateway.handleDisconnect(client as any);
+      expect(mockDashboard.broadcastToTenant).toHaveBeenCalledWith(
+        'tenant-1', 'booth_status', { boothId: 'booth-1', online: false }
+      );
+    });
   });
 });
