@@ -13,6 +13,12 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothStateUpdate } from '@packages/shared';
+import { DashboardGateway } from './dashboard.gateway';
+
+interface BoothEntry {
+  socketId: string;
+  tenantId: string;
+}
 
 @WebSocketGateway({ cors: { origin: '*' }, namespace: 'booth' })
 export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -20,9 +26,12 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server!: Server;
 
   private readonly logger = new Logger(BoothGateway.name);
-  private connectedBooths = new Map<string, string>(); // boothId → socketId
+  private connectedBooths = new Map<string, BoothEntry>(); // boothId → { socketId, tenantId }
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dashboardGateway: DashboardGateway,
+  ) {}
 
   async handleConnection(client: Socket) {
     const boothId = client.handshake.query['boothId'] as string;
@@ -46,17 +55,26 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    this.connectedBooths.set(boothId, client.id);
+    this.connectedBooths.set(boothId, { socketId: client.id, tenantId: booth.tenantId });
+    this.dashboardGateway.broadcastToTenant(booth.tenantId, 'booth_status', {
+      boothId,
+      online: true,
+    });
     this.logger.log(`Booth connected: ${boothId}`);
   }
 
   handleDisconnect(client: Socket) {
-    const boothId = Array.from(this.connectedBooths.entries()).find(
-      ([, id]) => id === client.id,
-    )?.[0];
+    const entry = Array.from(this.connectedBooths.entries()).find(
+      ([, e]) => e.socketId === client.id,
+    );
 
-    if (boothId) {
+    if (entry) {
+      const [boothId, { tenantId }] = entry;
       this.connectedBooths.delete(boothId);
+      this.dashboardGateway.broadcastToTenant(tenantId, 'booth_status', {
+        boothId,
+        online: false,
+      });
       this.logger.log(`Booth disconnected: ${boothId}`);
     }
   }
@@ -69,17 +87,29 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.logger.log(`Booth ${data.boothId} → state: ${data.state}`);
   }
 
+  isBoothOnline(boothId: string): boolean {
+    return this.connectedBooths.has(boothId);
+  }
+
+  getOnlineBoothCount(tenantId: string): number {
+    let count = 0;
+    for (const entry of this.connectedBooths.values()) {
+      if (entry.tenantId === tenantId) count++;
+    }
+    return count;
+  }
+
   sendPaymentApproved(boothId: string, payload: unknown) {
-    const socketId = this.connectedBooths.get(boothId);
-    if (socketId) {
-      this.server.to(socketId).emit('payment_approved', payload);
+    const entry = this.connectedBooths.get(boothId);
+    if (entry) {
+      this.server.to(entry.socketId).emit('payment_approved', payload);
     }
   }
 
   sendPaymentExpired(boothId: string) {
-    const socketId = this.connectedBooths.get(boothId);
-    if (socketId) {
-      this.server.to(socketId).emit('payment_expired');
+    const entry = this.connectedBooths.get(boothId);
+    if (entry) {
+      this.server.to(entry.socketId).emit('payment_expired');
     }
   }
 }
