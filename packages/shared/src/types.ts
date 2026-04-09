@@ -201,6 +201,8 @@ export interface BoothEventResponseDto {
   templates: ITemplate[];
 }
 
+// ─── Dashboard DTOs & Models ─────────────────────────────────────────────────
+
 export interface IBoothWithStatus extends IBooth {
   isOnline: boolean;
 }
