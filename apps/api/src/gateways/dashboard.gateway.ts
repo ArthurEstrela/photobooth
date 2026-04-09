@@ -18,13 +18,19 @@ export class DashboardGateway implements OnGatewayConnection {
   constructor(private readonly jwtService: JwtService) {}
 
   async handleConnection(client: Socket) {
-    const token = client.handshake.auth['token'] as string;
+    const token = client.handshake.auth?.['token'] as string | undefined;
+    if (!token) {
+      this.logger.warn(`Dashboard client rejected — missing token`);
+      client.disconnect();
+      return;
+    }
     try {
       const payload = this.jwtService.verify<JwtPayload>(token);
       client.data['tenantId'] = payload.sub;
       client.join(`tenant:${payload.sub}`);
       this.logger.log(`Dashboard client connected: tenant=${payload.sub}`);
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Dashboard client rejected — invalid token: ${(err as Error).message}`);
       client.disconnect();
     }
   }
