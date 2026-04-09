@@ -20,6 +20,10 @@ export const useDashboardSocket = () => {
       console.log('Connected to Dashboard Real-time Engine');
     });
 
+    socket.on('connect_error', (err) => {
+      console.error('Dashboard socket auth failed:', err.message);
+    });
+
     socket.on('payment_approved', () => {
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
