@@ -201,3 +201,43 @@ export interface BoothEventResponseDto {
   templates: ITemplate[];
 }
 
+export interface IBoothWithStatus extends IBooth {
+  isOnline: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface IPaymentRecord {
+  id: string;
+  amount: number;
+  status: PaymentStatus;
+  eventName: string;
+  boothName: string;
+  createdAt: Date;
+}
+
+export interface IGallerySession {
+  sessionId: string;
+  photoUrls: string[];
+  eventName: string;
+  boothName: string;
+  createdAt: Date;
+}
+
+export interface UpdateTenantSettingsDto {
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  brandName?: string | null;
+}
+
+export interface ITenantSettings {
+  logoUrl: string | null;
+  primaryColor: string | null;
+  brandName: string | null;
+}
+
