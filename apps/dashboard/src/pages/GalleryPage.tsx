@@ -4,7 +4,7 @@ import { Loader2, ChevronLeft, ChevronRight, Image } from 'lucide-react';
 
 export const GalleryPage: React.FC = () => {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useGallery(page, 20);
+  const { data, isLoading, isError } = useGallery(page, 20);
 
   return (
     <div>
@@ -16,6 +16,10 @@ export const GalleryPage: React.FC = () => {
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="animate-spin text-blue-600" size={32} />
+        </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center h-64 text-red-500">
+          <p>Erro ao carregar sessões.</p>
         </div>
       ) : data?.data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-gray-400">

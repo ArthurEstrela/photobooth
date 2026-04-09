@@ -11,12 +11,13 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 };
 
 function exportToCsv(payments: IPaymentRecord[]) {
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const header = 'Data,Evento,Cabine,Valor,Status';
   const rows = payments.map((p) =>
     [
       new Date(p.createdAt).toLocaleDateString('pt-BR'),
-      p.eventName,
-      p.boothName,
+      escape(p.eventName),
+      escape(p.boothName),
       `R$ ${p.amount.toFixed(2)}`,
       p.status,
     ].join(','),
@@ -33,7 +34,7 @@ function exportToCsv(payments: IPaymentRecord[]) {
 
 export const PaymentsPage: React.FC = () => {
   const [page, setPage] = useState(1);
-  const { data, isLoading } = usePayments(page, 20);
+  const { data, isLoading, isError } = usePayments(page, 20);
 
   return (
     <div>
@@ -55,6 +56,10 @@ export const PaymentsPage: React.FC = () => {
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="animate-spin text-blue-600" size={32} />
+        </div>
+      ) : isError ? (
+        <div className="flex items-center justify-center h-64 text-red-500">
+          <p>Erro ao carregar pagamentos.</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

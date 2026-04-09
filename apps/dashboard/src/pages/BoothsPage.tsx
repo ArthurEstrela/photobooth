@@ -97,7 +97,7 @@ export const BoothsPage: React.FC = () => {
               <div className="pt-4 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
                   className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancelar

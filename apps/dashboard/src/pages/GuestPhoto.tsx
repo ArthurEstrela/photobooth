@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export const GuestPhoto: React.FC = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
 
-  const { data, isLoading } = useQuery<{ sessionId: string; photoUrls: string[] }>({
+  const { data, isLoading, isError } = useQuery<{ sessionId: string; photoUrls: string[] }>({
     queryKey: ['guest-photo', sessionId],
     queryFn: async () => {
       const { data } = await axios.get(`${API_URL}/photos/public/${sessionId}`);
@@ -23,16 +23,21 @@ export const GuestPhoto: React.FC = () => {
 
   const handleDownload = async () => {
     if (!primaryPhotoUrl) return;
-    const response = await fetch(primaryPhotoUrl);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `photobooth-${sessionId}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    try {
+      const response = await fetch(primaryPhotoUrl);
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `photobooth-${sessionId}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download error:', err);
+    }
   };
 
   return (
@@ -85,6 +90,8 @@ export const GuestPhoto: React.FC = () => {
               </div>
             </div>
           </>
+        ) : isError ? (
+          <p className="text-center text-neutral-400">Erro ao carregar foto. Tente novamente.</p>
         ) : (
           <p className="text-center text-neutral-400">Foto não encontrada.</p>
         )}
