@@ -18,6 +18,7 @@ import { RequestUser } from '../auth/jwt.strategy';
 import {
   TenantMetrics,
   IBoothWithStatus,
+  OfflineMode,
   PaginatedResponse,
   IGallerySession,
   IPaymentRecord,
@@ -67,7 +68,7 @@ export class TenantController {
     const booths = await this.prisma.booth.findMany({ where: { tenantId } });
     return booths.map((b) => ({
       ...b,
-      offlineMode: b.offlineMode as any,
+      offlineMode: b.offlineMode as OfflineMode,
       isOnline: this.boothGateway.isBoothOnline(b.id),
     }));
   }

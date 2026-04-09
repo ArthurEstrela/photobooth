@@ -182,7 +182,7 @@ describe('TenantController — payments', () => {
     const payments = [
       {
         id: 'pay-1',
-        amount: { toNumber: () => 15 },
+        amount: 15,
         status: 'APPROVED',
         createdAt: new Date('2026-01-01'),
         event: { name: 'Wedding' },
@@ -196,6 +196,7 @@ describe('TenantController — payments', () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].id).toBe('pay-1');
+    expect(result.data[0].amount).toBe(15);
     expect(result.data[0].eventName).toBe('Wedding');
     expect(result.total).toBe(1);
   });
