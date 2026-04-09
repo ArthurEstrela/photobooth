@@ -5,7 +5,7 @@ import axios from 'axios';
 import { OfflineMode } from '@packages/shared';
 
 vi.mock('axios');
-const mockAxios = axios as jest.Mocked<typeof axios>;
+const mockAxios = vi.mocked(axios);
 
 const mockConfig = {
   offlineMode: OfflineMode.BLOCK,

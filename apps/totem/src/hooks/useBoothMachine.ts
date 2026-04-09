@@ -43,7 +43,9 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
     });
 
     socketRef.current = socket;
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+    };
   }, [boothId, token, transition]);
 
   const startPayment = useCallback(

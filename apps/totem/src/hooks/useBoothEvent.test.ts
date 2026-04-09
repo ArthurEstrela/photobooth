@@ -4,7 +4,7 @@ import { useBoothEvent } from './useBoothEvent';
 import axios from 'axios';
 
 vi.mock('axios');
-const mockAxios = axios as jest.Mocked<typeof axios>;
+const mockAxios = vi.mocked(axios);
 
 const mockResponse = {
   event: { id: 'ev-1', name: 'Casamento', price: 25, photoCount: 2 },
