@@ -5,6 +5,7 @@ import { BullModule } from '@nestjs/bull';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from './prisma/prisma.service';
 import { BoothGateway } from './gateways/booth.gateway';
+import { DashboardGateway } from './gateways/dashboard.gateway';
 import { MercadoPagoAdapter } from './adapters/mercadopago.adapter';
 import { CreatePixPaymentUseCase } from './use-cases/create-pix-payment.use-case';
 import { ProcessWebhookUseCase } from './use-cases/process-webhook.use-case';
@@ -32,10 +33,17 @@ import { AuthModule } from './auth/auth.module';
       name: 'payment-expiration',
     }),
   ],
-  controllers: [PaymentController, PhotoController, TenantController, EventController, BoothsController],
+  controllers: [
+    PaymentController,
+    PhotoController,
+    TenantController,
+    EventController,
+    BoothsController,
+  ],
   providers: [
     PrismaService,
     BoothGateway,
+    DashboardGateway,
     MercadoPagoAdapter,
     CreatePixPaymentUseCase,
     ProcessWebhookUseCase,
