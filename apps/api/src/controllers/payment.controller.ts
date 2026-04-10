@@ -1,8 +1,18 @@
-// apps/api/src/controllers/payment.controller.ts
-
-import { Controller, Post, Body, HttpCode, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { CreatePixPaymentUseCase } from '../use-cases/create-pix-payment.use-case';
+import { CreateDigitalPaymentUseCase } from '../use-cases/create-digital-payment.use-case';
 import { ProcessWebhookUseCase } from '../use-cases/process-webhook.use-case';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreatePixPaymentDTO } from '@packages/shared';
 
 @Controller('payments')
@@ -11,7 +21,9 @@ export class PaymentController {
 
   constructor(
     private readonly createPixPaymentUseCase: CreatePixPaymentUseCase,
+    private readonly createDigitalPaymentUseCase: CreateDigitalPaymentUseCase,
     private readonly processWebhookUseCase: ProcessWebhookUseCase,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('pix')
@@ -19,16 +31,25 @@ export class PaymentController {
     return this.createPixPaymentUseCase.execute(dto);
   }
 
+  @Post('digital/:sessionId')
+  async createDigitalPayment(@Param('sessionId') sessionId: string) {
+    return this.createDigitalPaymentUseCase.execute(sessionId);
+  }
+
+  @Get(':id')
+  async getPayment(@Param('id') id: string) {
+    const payment = await this.prisma.payment.findUnique({ where: { id } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return { id: payment.id, status: payment.status, paymentType: payment.paymentType };
+  }
+
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   async handleWebhook(@Body() payload: any) {
     this.logger.log('Webhook received from Mercado Pago');
-    
-    // We process asynchronously to return 200/OK quickly as required by MP
-    this.processWebhookUseCase.execute(payload).catch(err => {
+    this.processWebhookUseCase.execute(payload).catch((err) => {
       this.logger.error('Error processing webhook', err);
     });
-
     return { received: true };
   }
 }
