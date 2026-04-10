@@ -1,21 +1,22 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
     "paths": {
       "@packages/shared": ["../../packages/shared/src/types.ts"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

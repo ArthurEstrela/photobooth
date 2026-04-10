@@ -13,10 +13,7 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strict": true,
-    "paths": {
-      "@packages/shared": ["../../packages/shared/src/types.ts"]
-    }
+    "strict": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
