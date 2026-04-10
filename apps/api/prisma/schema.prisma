@@ -11,7 +11,7 @@ datasource db {
 
 model Plan {
   id                  String   @id @default(uuid())
-  name                String   // FREE, STARTER, PRO, ENTERPRISE
+  name                String
   maxBooths           Int
   maxSessionsPerMonth Int
   tenants             Tenant[]
@@ -19,59 +19,78 @@ model Plan {
 }
 
 model Tenant {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String     @unique
   passwordHash String
   logoUrl      String?
   primaryColor String?
   brandName    String?
   planId       String?
-  plan         Plan?    @relation(fields: [planId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  plan         Plan?      @relation(fields: [planId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   booths       Booth[]
   events       Event[]
+  templates    Template[]
 }
 
 model Booth {
-  id                  String   @id @default(uuid())
+  id                  String         @id @default(uuid())
   name                String
-  token               String   @unique
+  token               String         @unique
   tenantId            String
-  tenant              Tenant   @relation(fields: [tenantId], references: [id])
-  offlineMode         String   @default("BLOCK")
-  offlineCredits      Int      @default(0)
-  demoSessionsPerHour Int      @default(3)
-  cameraSound         Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  tenant              Tenant         @relation(fields: [tenantId], references: [id])
+  offlineMode         String         @default("BLOCK")
+  offlineCredits      Int            @default(0)
+  demoSessionsPerHour Int            @default(3)
+  cameraSound         Boolean        @default(true)
+  activeEventId       String?
+  activeEvent         Event?         @relation("BoothActiveEvent", fields: [activeEventId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
   payments            Payment[]
   photoSessions       PhotoSession[]
 }
 
 model Event {
-  id            String     @id @default(uuid())
-  name          String
-  price         Decimal
-  photoCount    Int        @default(1)
-  tenantId      String
-  tenant        Tenant     @relation(fields: [tenantId], references: [id])
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  templates     Template[]
-  payments      Payment[]
-  photoSessions PhotoSession[]
+  id             String          @id @default(uuid())
+  name           String
+  price          Decimal
+  photoCount     Int             @default(1)
+  digitalPrice   Decimal?
+  backgroundUrl  String?
+  maxTemplates   Int             @default(5)
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  eventTemplates EventTemplate[]
+  payments       Payment[]
+  photoSessions  PhotoSession[]
+  booths         Booth[]         @relation("BoothActiveEvent")
 }
 
 model Template {
-  id         String   @id @default(uuid())
-  name       String
-  overlayUrl String
+  id             String          @id @default(uuid())
+  name           String
+  overlayUrl     String
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  eventTemplates EventTemplate[]
+}
+
+model EventTemplate {
   eventId    String
-  event      Event    @relation(fields: [eventId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  templateId String
+  order      Int
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, templateId])
+  @@index([eventId, order])
 }
 
 model Payment {
@@ -81,6 +100,7 @@ model Payment {
   qrCodeBase64 String?
   amount       Decimal
   status       String        @default("PENDING")
+  paymentType  String        @default("MAIN")
   boothId      String
   booth        Booth         @relation(fields: [boothId], references: [id])
   eventId      String
