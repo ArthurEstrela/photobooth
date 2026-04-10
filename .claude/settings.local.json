@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls apps/dashboard/tailwind.config.*)",
+      "Bash(ls apps/dashboard/src/components/ui/*.test.tsx)",
+      "Bash(npx vitest:*)",
+      "Bash(node -e ':*)"
+    ]
+  }
+}
