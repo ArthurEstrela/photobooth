@@ -38,6 +38,7 @@ export const Button: React.FC<ButtonProps> = ({
 }) => (
   <button
     disabled={disabled || loading}
+    aria-busy={loading}
     className={`inline-flex items-center justify-center font-medium transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`}
     {...props}
   >
