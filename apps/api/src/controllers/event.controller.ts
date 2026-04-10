@@ -17,6 +17,15 @@ interface AuthReq {
   user: RequestUser;
 }
 
+interface CreateEventDto {
+  name: string;
+  price: number;
+  photoCount?: number;
+  digitalPrice?: number | null;
+  backgroundUrl?: string | null;
+  maxTemplates?: number;
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller('events')
 export class EventController {
@@ -31,12 +40,15 @@ export class EventController {
   }
 
   @Post()
-  async create(@Body() data: any, @Request() req: AuthReq) {
+  async create(@Body() data: CreateEventDto, @Request() req: AuthReq) {
     return this.prisma.event.create({
       data: {
         name: data.name,
         price: data.price,
         photoCount: data.photoCount ?? 1,
+        digitalPrice: data.digitalPrice ?? null,
+        backgroundUrl: data.backgroundUrl ?? null,
+        maxTemplates: data.maxTemplates ?? 5,
         tenantId: req.user.tenantId,
       },
     });
@@ -48,10 +60,17 @@ export class EventController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() data: any) {
+  async update(@Param('id') id: string, @Body() data: CreateEventDto) {
     return this.prisma.event.update({
       where: { id },
-      data: { name: data.name, price: data.price },
+      data: {
+        name: data.name,
+        price: data.price,
+        photoCount: data.photoCount,
+        digitalPrice: data.digitalPrice,
+        backgroundUrl: data.backgroundUrl,
+        maxTemplates: data.maxTemplates,
+      },
     });
   }
 

@@ -13,9 +13,9 @@ const mockPrisma = {
   },
 };
 
-const USER = { user: { tenantId: 'tenant-1', email: 't@t.com' } };
+const TENANT_USER = { user: { tenantId: 'tenant-1', email: 't@t.com' } };
 
-describe('EventController (JWT)', () => {
+describe('EventController', () => {
   let controller: EventController;
 
   beforeEach(async () => {
@@ -30,24 +30,43 @@ describe('EventController (JWT)', () => {
     controller = module.get(EventController);
   });
 
-  it('findAll uses tenantId from JWT', async () => {
-    mockPrisma.event.findMany.mockResolvedValueOnce([{ id: 'e-1', name: 'Wedding' }]);
+  it('POST /events creates event with digitalPrice and maxTemplates', async () => {
+    const created = {
+      id: 'ev-1', name: 'Wedding', price: 30, photoCount: 4,
+      digitalPrice: 5, backgroundUrl: null, maxTemplates: 3,
+      tenantId: 'tenant-1', createdAt: new Date(), updatedAt: new Date(),
+    };
+    mockPrisma.event.create.mockResolvedValue(created);
 
-    const result = await controller.findAll(USER as any);
-
-    expect(mockPrisma.event.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tenantId: 'tenant-1' } }),
+    const result = await controller.create(
+      { name: 'Wedding', price: 30, photoCount: 4, digitalPrice: 5, backgroundUrl: null, maxTemplates: 3 },
+      TENANT_USER as any,
     );
-    expect(result).toHaveLength(1);
+
+    expect(mockPrisma.event.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ digitalPrice: 5, maxTemplates: 3, tenantId: 'tenant-1' }),
+    });
+    expect(result.id).toBe('ev-1');
   });
 
-  it('create uses tenantId from JWT', async () => {
-    mockPrisma.event.create.mockResolvedValueOnce({ id: 'e-new' });
+  it('POST /events defaults digitalPrice to null and maxTemplates to 5', async () => {
+    mockPrisma.event.create.mockResolvedValue({ id: 'ev-2' });
 
-    await controller.create({ name: 'Party', price: 20 }, USER as any);
+    await controller.create({ name: 'Party', price: 20 }, TENANT_USER as any);
 
-    expect(mockPrisma.event.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ tenantId: 'tenant-1' }) }),
-    );
+    expect(mockPrisma.event.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ digitalPrice: null, maxTemplates: 5 }),
+    });
+  });
+
+  it('PUT /events/:id updates digitalPrice and maxTemplates', async () => {
+    mockPrisma.event.update.mockResolvedValue({ id: 'ev-1' });
+
+    await controller.update('ev-1', { name: 'Updated', price: 25, maxTemplates: 4 });
+
+    expect(mockPrisma.event.update).toHaveBeenCalledWith({
+      where: { id: 'ev-1' },
+      data: expect.objectContaining({ maxTemplates: 4 }),
+    });
   });
 });
