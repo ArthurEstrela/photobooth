@@ -23,7 +23,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   }
   return (
     <div
-      className={`bg-gray-100 rounded-lg animate-pulse ${className}`}
+      className={`h-4 bg-gray-100 rounded-lg animate-pulse ${className}`}
     />
   );
 };

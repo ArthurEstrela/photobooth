@@ -9,6 +9,7 @@
 
 :root {
   --color-primary-rgb: 79 70 229;
+  --color-primary: rgb(var(--color-primary-rgb));
 }
 
 * {

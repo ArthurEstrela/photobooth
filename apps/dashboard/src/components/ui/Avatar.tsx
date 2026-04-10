@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export interface AvatarProps {
   name?: string;
@@ -29,11 +29,14 @@ export const Avatar: React.FC<AvatarProps> = ({
   size = 'md',
   className = '',
 }) => {
-  if (src) {
+  const [imgError, setImgError] = useState(false);
+
+  if (src && !imgError) {
     return (
       <img
         src={src}
         alt={name ?? 'avatar'}
+        onError={() => setImgError(true)}
         className={`rounded-full object-cover ${sizes[size]} ${className}`}
       />
     );
