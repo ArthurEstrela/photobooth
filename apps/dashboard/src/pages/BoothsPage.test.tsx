@@ -5,16 +5,24 @@ import { BoothsPage } from './BoothsPage';
 vi.mock('../hooks/api/useBooths', () => ({
   useBooths: () => ({
     data: [
-      { id: 'b-1', name: 'Cabine Salão', isOnline: true, token: 'tok-1', offlineMode: 'BLOCK' },
-      { id: 'b-2', name: 'Cabine Jardim', isOnline: false, token: 'tok-2', offlineMode: 'DEMO' },
+      { id: 'b-1', name: 'Cabine Salão', isOnline: true, offlineMode: 'BLOCK', activeEventId: 'ev-1', activeEvent: { id: 'ev-1', name: 'Wedding' } },
+      { id: 'b-2', name: 'Cabine Jardim', isOnline: false, offlineMode: 'DEMO', activeEventId: null, activeEvent: null },
     ],
     isLoading: false,
   }),
-  useCreateBooth: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateBooth: () => ({ mutate: vi.fn(), isPending: false, reset: vi.fn() }),
+  useSetBoothEvent: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock('../hooks/api/useEvents', () => ({
+  useEvents: () => ({
+    data: [{ id: 'ev-1', name: 'Wedding', price: 30 }],
+    isLoading: false,
+  }),
 }));
 
 describe('BoothsPage', () => {
-  it('renders list of booths with online/offline badges', () => {
+  it('renders booth cards with online/offline badges', () => {
     render(<BoothsPage />);
     expect(screen.getByText('Cabine Salão')).toBeTruthy();
     expect(screen.getByText('Cabine Jardim')).toBeTruthy();
@@ -22,11 +30,24 @@ describe('BoothsPage', () => {
     expect(screen.getByText('Offline')).toBeTruthy();
   });
 
-  it('shows create modal when "Nova Cabine" is clicked', async () => {
+  it('shows active event name on booth card', () => {
+    render(<BoothsPage />);
+    expect(screen.getByText('Wedding')).toBeTruthy();
+  });
+
+  it('opens drawer when "Configurar" is clicked', async () => {
+    render(<BoothsPage />);
+    fireEvent.click(screen.getAllByText('Configurar')[0]);
+    await waitFor(() => {
+      expect(screen.getByText('Configurar Cabine')).toBeTruthy();
+    });
+  });
+
+  it('shows create form when "Nova Cabine" is clicked', async () => {
     render(<BoothsPage />);
     fireEvent.click(screen.getByText('Nova Cabine'));
     await waitFor(() => {
-      expect(screen.getByText('Cadastrar Nova Cabine')).toBeTruthy();
+      expect(screen.getByText('Cadastrar Cabine')).toBeTruthy();
     });
   });
 });

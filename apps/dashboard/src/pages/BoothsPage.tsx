@@ -1,118 +1,138 @@
 import React, { useState } from 'react';
-import { useBooths, useCreateBooth } from '../hooks/api/useBooths';
-import { Plus, Smartphone, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { OfflineMode } from '@packages/shared';
+import { Plus, Settings2 } from 'lucide-react';
+import { Card, Badge, Button, Drawer, Input, Select, Modal, Skeleton, EmptyState } from '../components/ui';
+import { useBooths, useCreateBooth, useSetBoothEvent } from '../hooks/api/useBooths';
+import { useEvents } from '../hooks/api/useEvents';
 
 export const BoothsPage: React.FC = () => {
   const { data: booths, isLoading } = useBooths();
-  const createMutation = useCreateBooth();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', offlineMode: OfflineMode.BLOCK });
+  const { data: events } = useEvents();
+  const createBooth = useCreateBooth();
+  const setBoothEvent = useSetBoothEvent();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createMutation.mutate(form, {
-      onSuccess: () => {
-        setIsModalOpen(false);
-        setForm({ name: '', offlineMode: OfflineMode.BLOCK });
+  const [drawerBooth, setDrawerBooth] = useState<any | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    createBooth.mutate(
+      { name: newName.trim() },
+      {
+        onSuccess: () => { setCreateOpen(false); setNewName(''); createBooth.reset(); },
       },
-    });
+    );
   };
 
+  const handleCreateCancel = () => { setCreateOpen(false); setNewName(''); createBooth.reset(); };
+
+  const eventOptions = [
+    { value: '', label: 'Nenhum evento' },
+    ...(events ?? []).map((e) => ({ value: e.id, label: e.name })),
+  ];
+
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Cabines</h2>
-          <p className="text-gray-500">Gerencie seus dispositivos fotográficos.</p>
-        </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={20} />
-          Nova Cabine
-        </button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Cabines</h1>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus size={14} /> Nova Cabine
+        </Button>
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="animate-spin text-blue-600" size={32} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
         </div>
+      ) : !booths?.length ? (
+        <EmptyState
+          title="Nenhuma cabine cadastrada"
+          description="Crie sua primeira cabine para começar."
+          action={{ label: 'Nova Cabine', onClick: () => setCreateOpen(true) }}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {booths?.map((booth) => (
-            <div key={booth.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-gray-100 rounded-lg">
-                  <Smartphone size={24} className="text-gray-600" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {booths.map((booth) => (
+            <Card key={booth.id} padding="md" className="flex flex-col gap-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900">{booth.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {booth.activeEvent?.name ?? 'Sem evento ativo'}
+                  </p>
                 </div>
-                <span
-                  className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full ${
-                    booth.isOnline
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  {booth.isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+                <Badge variant={booth.isOnline ? 'success' : 'neutral'}>
                   {booth.isOnline ? 'Online' : 'Offline'}
-                </span>
+                </Badge>
               </div>
-              <h3 className="text-lg font-bold text-gray-900">{booth.name}</h3>
-              <p className="text-sm text-gray-400 mt-1 font-mono truncate">{booth.token}</p>
-              <p className="text-xs text-gray-400 mt-2">Modo offline: {booth.offlineMode}</p>
-            </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDrawerBooth(booth)}
+              >
+                <Settings2 size={14} /> Configurar
+              </Button>
+            </Card>
           ))}
         </div>
       )}
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-6">Cadastrar Nova Cabine</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                <input
-                  type="text"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
-                  placeholder="Ex: Cabine do Salão"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modo Offline</label>
-                <select
-                  value={form.offlineMode}
-                  onChange={(e) => setForm({ ...form, offlineMode: e.target.value as OfflineMode })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
-                >
-                  <option value={OfflineMode.BLOCK}>Bloquear</option>
-                  <option value={OfflineMode.DEMO}>Demonstração</option>
-                  <option value={OfflineMode.CREDITS}>Créditos</option>
-                </select>
-              </div>
-              <div className="pt-4 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setIsModalOpen(false); createMutation.reset(); }}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {createMutation.isPending ? 'Criando...' : 'Criar Cabine'}
-                </button>
-              </div>
-            </form>
+      {/* Create Modal */}
+      <Modal open={createOpen} onClose={handleCreateCancel} title="Cadastrar Cabine">
+        <div className="space-y-4">
+          <Input
+            label="Nome da cabine"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Ex: Cabine Salão Principal"
+          />
+          <div className="flex gap-3 justify-end pt-2">
+            <Button variant="ghost" onClick={handleCreateCancel}>Cancelar</Button>
+            <Button
+              onClick={handleCreate}
+              loading={createBooth.isPending}
+              disabled={!newName.trim()}
+            >
+              Criar
+            </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Config Drawer */}
+      {drawerBooth && (
+        <Drawer
+          open
+          onClose={() => setDrawerBooth(null)}
+          title="Configurar Cabine"
+        >
+          <div className="space-y-5">
+            <p className="text-sm font-semibold text-gray-700">{drawerBooth.name}</p>
+            <Select
+              label="Evento ativo"
+              options={eventOptions}
+              value={drawerBooth.activeEventId ?? ''}
+              onChange={(e) => {
+                const eventId = e.target.value || null;
+                setBoothEvent.mutate(
+                  { boothId: drawerBooth.id, eventId },
+                  { onSuccess: () => {
+                    // Manual update for better UX in test, though React Query would handle this via invalidation
+                    setDrawerBooth({ ...drawerBooth, activeEventId: eventId, activeEvent: events?.find((ev) => ev.id === eventId) ?? null });
+                  }},
+                );
+              }}
+            />
+            <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${drawerBooth.isOnline ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className="text-sm text-gray-600">
+                  {drawerBooth.isOnline ? 'Cabine online' : 'Cabine offline'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Drawer>
       )}
     </div>
   );
