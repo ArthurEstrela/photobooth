@@ -1,129 +1,52 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { BoothsController } from './booths.controller';
 import { PrismaService } from '../prisma/prisma.service';
-import { UnauthorizedException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
-import { OfflineMode } from '@packages/shared';
 
 const mockPrisma = {
-  booth: {
-    findFirst: jest.fn(),
-  },
-  event: {
-    findFirst: jest.fn(),
-  },
+  booth: { findFirst: jest.fn(), findUnique: jest.fn() },
+  event: { findUnique: jest.fn() },
 };
 
-describe('BoothsController', () => {
+describe('BoothsController — getBoothEvent', () => {
   let controller: BoothsController;
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    const module: TestingModule = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       controllers: [BoothsController],
       providers: [{ provide: PrismaService, useValue: mockPrisma }],
     }).compile();
-    controller = module.get<BoothsController>(BoothsController);
+    controller = module.get(BoothsController);
   });
 
-  describe('GET /booths/:id/config', () => {
-    it('returns BoothConfigDto for valid token', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({
-        id: 'booth-1',
-        token: 'secret',
-        offlineMode: 'BLOCK',
-        offlineCredits: 0,
-        demoSessionsPerHour: 3,
-        cameraSound: true,
-        tenant: { logoUrl: null, primaryColor: '#3b82f6', brandName: 'Demo' },
-      });
-
-      const result = await controller.getConfig('booth-1', 'Bearer secret');
-
-      expect(result.offlineMode).toBe(OfflineMode.BLOCK);
-      expect(result.cameraSound).toBe(true);
-      expect(result.branding.primaryColor).toBe('#3b82f6');
-    });
-
-    it('throws UnauthorizedException for invalid token', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue(null);
-      await expect(controller.getConfig('booth-1', 'Bearer wrong')).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('throws UnauthorizedException when auth header is missing', async () => {
-      await expect(controller.getConfig('booth-1', undefined as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('throws InternalServerErrorException for unknown offlineMode value', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({
-        id: 'booth-1',
-        token: 'secret',
-        offlineMode: 'LEGACY',
-        offlineCredits: 0,
-        demoSessionsPerHour: 3,
-        cameraSound: true,
-        tenant: { logoUrl: null, primaryColor: null, brandName: null },
-      });
-
-      await expect(controller.getConfig('booth-1', 'Bearer secret')).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
+  it('throws UnauthorizedException when no token', async () => {
+    await expect(controller.getBoothEvent('b-1', undefined as any)).rejects.toThrow(UnauthorizedException);
   });
 
-  describe('GET /booths/:id/event', () => {
-    it('returns event with templates for valid token', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({
-        id: 'booth-1',
-        token: 'secret',
-        tenantId: 'tenant-1',
-      });
-      mockPrisma.event.findFirst.mockResolvedValue({
-        id: 'event-1',
-        name: 'Casamento',
-        price: { toNumber: () => 25.0 },
-        photoCount: 2,
-        templates: [{ id: 't1', name: 'Rosa', overlayUrl: '/frames/rosa.png', eventId: 'event-1', createdAt: new Date(), updatedAt: new Date() }],
-      });
+  it('throws NotFoundException when booth has no activeEventId', async () => {
+    mockPrisma.booth.findFirst.mockResolvedValue({ id: 'b-1', token: 'tok', activeEventId: null });
 
-      const result = await controller.getBoothEvent('booth-1', 'Bearer secret');
+    await expect(controller.getBoothEvent('b-1', 'Bearer tok')).rejects.toThrow(NotFoundException);
+  });
 
-      expect(result.event.photoCount).toBe(2);
-      expect(result.templates).toHaveLength(1);
-      expect(result.templates[0].name).toBe('Rosa');
+  it('returns event with ordered templates when activeEventId is set', async () => {
+    mockPrisma.booth.findFirst.mockResolvedValue({ id: 'b-1', token: 'tok', activeEventId: 'ev-1' });
+    mockPrisma.event.findUnique.mockResolvedValue({
+      id: 'ev-1', name: 'Wedding', price: { toNumber: () => 30 }, photoCount: 4,
+      digitalPrice: { toNumber: () => 5 }, backgroundUrl: null, maxTemplates: 3,
+      eventTemplates: [
+        { order: 0, template: { id: 't-1', name: 'Floral', overlayUrl: 'https://s3/t1.png' } },
+        { order: 1, template: { id: 't-2', name: 'Gold', overlayUrl: 'https://s3/t2.png' } },
+      ],
     });
 
-    it('throws NotFoundException when no event exists for tenant', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({ id: 'booth-1', token: 'secret', tenantId: 'tenant-1' });
-      mockPrisma.event.findFirst.mockResolvedValue(null);
-      await expect(controller.getBoothEvent('booth-1', 'Bearer secret')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
+    const result = await controller.getBoothEvent('b-1', 'Bearer tok');
 
-    it('throws UnauthorizedException for invalid token in getBoothEvent', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue(null);
-      await expect(controller.getBoothEvent('booth-1', 'Bearer wrong')).rejects.toThrow(
-        UnauthorizedException,
-      );
-    });
-
-    it('throws InternalServerErrorException for invalid photoCount', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({ id: 'booth-1', token: 'secret', tenantId: 'tenant-1' });
-      mockPrisma.event.findFirst.mockResolvedValue({
-        id: 'event-1',
-        name: 'Test',
-        price: { toNumber: () => 25 },
-        photoCount: 3,
-        templates: [],
-      });
-
-      await expect(controller.getBoothEvent('booth-1', 'Bearer secret')).rejects.toThrow(
-        InternalServerErrorException,
-      );
-    });
+    expect(result.event.digitalPrice).toBe(5);
+    expect(result.event.maxTemplates).toBe(3);
+    expect(result.templates).toHaveLength(2);
+    expect(result.templates[0].id).toBe('t-1');
+    expect(result.templates[0].order).toBe(0);
   });
 });

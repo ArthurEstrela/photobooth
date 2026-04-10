@@ -27,19 +27,13 @@ export class BoothsController {
     @Headers('authorization') auth: string,
   ): Promise<BoothConfigDto> {
     const token = this.extractToken(auth);
-    if (!token) {
-      this.logger.warn(`Unauthorized booth config request: boothId=${id}`);
-      throw new UnauthorizedException();
-    }
+    if (!token) throw new UnauthorizedException();
 
     const booth = await this.prisma.booth.findFirst({
       where: { id, token },
       include: { tenant: true },
     });
-    if (!booth) {
-      this.logger.warn(`Unauthorized booth config request: boothId=${id}`);
-      throw new UnauthorizedException();
-    }
+    if (!booth) throw new UnauthorizedException();
 
     if (!Object.values(OfflineMode).includes(booth.offlineMode as OfflineMode)) {
       throw new InternalServerErrorException(`Unknown offlineMode: ${booth.offlineMode}`);
@@ -64,23 +58,22 @@ export class BoothsController {
     @Headers('authorization') auth: string,
   ): Promise<BoothEventResponseDto> {
     const token = this.extractToken(auth);
-    if (!token) {
-      this.logger.warn(`Unauthorized booth event request: boothId=${id}`);
-      throw new UnauthorizedException();
-    }
+    if (!token) throw new UnauthorizedException();
 
     const booth = await this.prisma.booth.findFirst({ where: { id, token } });
-    if (!booth) {
-      this.logger.warn(`Unauthorized booth event request: boothId=${id}`);
-      throw new UnauthorizedException();
-    }
+    if (!booth) throw new UnauthorizedException();
+    if (!booth.activeEventId) throw new NotFoundException('No active event configured for this booth');
 
-    const event = await this.prisma.event.findFirst({
-      where: { tenantId: booth.tenantId },
-      orderBy: { createdAt: 'desc' },
-      include: { templates: true },
+    const event = await this.prisma.event.findUnique({
+      where: { id: booth.activeEventId },
+      include: {
+        eventTemplates: {
+          orderBy: { order: 'asc' },
+          include: { template: true },
+        },
+      },
     });
-    if (!event) throw new NotFoundException('No active event found for this booth');
+    if (!event) throw new NotFoundException('Active event not found');
 
     const validPhotoCounts = [1, 2, 4] as const;
     if (!validPhotoCounts.includes(event.photoCount as 1 | 2 | 4)) {
@@ -93,8 +86,16 @@ export class BoothsController {
         name: event.name,
         price: event.price.toNumber(),
         photoCount: event.photoCount as 1 | 2 | 4,
+        digitalPrice: event.digitalPrice?.toNumber() ?? null,
+        backgroundUrl: event.backgroundUrl,
+        maxTemplates: event.maxTemplates,
       },
-      templates: event.templates,
+      templates: event.eventTemplates.map((et) => ({
+        id: et.template.id,
+        name: et.template.name,
+        overlayUrl: et.template.overlayUrl,
+        order: et.order,
+      })),
     };
   }
 }
