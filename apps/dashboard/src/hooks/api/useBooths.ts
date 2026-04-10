@@ -18,8 +18,17 @@ export const useCreateBooth = () => {
       const { data } = await api.post('/tenant/booths', body);
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['booths'] });
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booths'] }),
+  });
+};
+
+export const useSetBoothEvent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ boothId, eventId }: { boothId: string; eventId: string | null }) => {
+      const { data } = await api.put(`/tenant/booths/${boothId}/event`, { eventId });
+      return data;
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booths'] }),
   });
 };
