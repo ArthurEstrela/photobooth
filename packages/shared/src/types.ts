@@ -132,6 +132,7 @@ export interface IBooth {
   offlineCredits: number;
   demoSessionsPerHour: number;
   cameraSound: boolean;
+  activeEventId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -141,6 +142,9 @@ export interface IEvent {
   name: string;
   price: number;
   photoCount: 1 | 2 | 4;
+  digitalPrice: number | null;
+  backgroundUrl: string | null;
+  maxTemplates: number;
   tenantId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -150,9 +154,16 @@ export interface ITemplate {
   id: string;
   name: string;
   overlayUrl: string;
-  eventId: string;
+  tenantId: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IEventTemplate {
+  eventId: string;
+  templateId: string;
+  order: number;
+  template: ITemplate;
 }
 
 export interface IPayment {
@@ -162,6 +173,7 @@ export interface IPayment {
   qrCodeBase64: string | null;
   amount: number;
   status: PaymentStatus;
+  paymentType: 'MAIN' | 'DIGITAL';
   boothId: string;
   eventId: string;
   createdAt: Date;
@@ -197,14 +209,18 @@ export interface BoothEventResponseDto {
     name: string;
     price: number;
     photoCount: 1 | 2 | 4;
+    digitalPrice: number | null;
+    backgroundUrl: string | null;
+    maxTemplates: number;
   };
-  templates: ITemplate[];
+  templates: Array<{ id: string; name: string; overlayUrl: string; order: number }>;
 }
 
 // ─── Dashboard DTOs & Models ─────────────────────────────────────────────────
 
 export interface IBoothWithStatus extends IBooth {
   isOnline: boolean;
+  activeEvent?: { id: string; name: string } | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -220,6 +236,7 @@ export interface IPaymentRecord {
   status: PaymentStatus;
   eventName: string;
   boothName: string;
+  paymentType: 'MAIN' | 'DIGITAL';
   createdAt: Date;
 }
 
@@ -243,3 +260,19 @@ export interface ITenantSettings {
   brandName: string | null;
 }
 
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+export interface IAnalyticsDayEntry {
+  date: string; // YYYY-MM-DD
+  revenue: number;
+  sessions: number;
+}
+
+export interface IAnalyticsData {
+  series: IAnalyticsDayEntry[];
+  totalRevenue: number;
+  avgTicket: number;
+  bestDay: { date: string; revenue: number } | null;
+  mostActiveBooth: { name: string; sessions: number } | null;
+  topEvents: Array<{ id: string; name: string; revenue: number }>;
+}
