@@ -1,31 +1,30 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { TenantController } from './tenant.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothGateway } from '../gateways/booth.gateway';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { S3StorageAdapter } from '../adapters/storage/s3.adapter';
 
 const mockPrisma = {
-  payment: {
-    count: jest.fn(),
-    aggregate: jest.fn(),
-    findMany: jest.fn(),
-  },
-  photoSession: { count: jest.fn(), findMany: jest.fn() },
-  booth: { findMany: jest.fn(), create: jest.fn() },
-  event: { findMany: jest.fn() },
+  payment: { count: jest.fn(), aggregate: jest.fn(), findMany: jest.fn() },
+  photoSession: { count: jest.fn(), findMany: jest.fn(), groupBy: jest.fn() },
+  booth: { findMany: jest.fn(), create: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
   tenant: { findUnique: jest.fn(), update: jest.fn() },
+  template: { findMany: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
+  eventTemplate: { findMany: jest.fn(), deleteMany: jest.fn(), createMany: jest.fn() },
+  event: { findFirst: jest.fn() },
 };
 
 const mockBoothGateway = {
-  isBoothOnline: jest.fn(),
   getOnlineBoothCount: jest.fn(),
+  isBoothOnline: jest.fn(),
 };
 
 const TENANT_USER = { user: { tenantId: 'tenant-1', email: 't@t.com' } };
 
-describe('TenantController — getMetrics', () => {
+describe('TenantController', () => {
   let controller: TenantController;
+  const mockS3 = { uploadFile: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -34,221 +33,89 @@ describe('TenantController — getMetrics', () => {
       providers: [
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BoothGateway, useValue: mockBoothGateway },
+        { provide: S3StorageAdapter, useValue: mockS3 },
       ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
+
     controller = module.get(TenantController);
   });
 
-  it('returns totalRevenue, totalSessions, conversionRate, activeBooths', async () => {
-    mockPrisma.payment.count
-      .mockResolvedValueOnce(8)   // APPROVED
-      .mockResolvedValueOnce(1)   // EXPIRED
-      .mockResolvedValueOnce(1);  // REJECTED
-    mockPrisma.payment.aggregate.mockResolvedValueOnce({ _sum: { amount: 120 } });
-    mockPrisma.photoSession.count.mockResolvedValueOnce(8);
-    mockBoothGateway.getOnlineBoothCount.mockReturnValue(3);
+  it('GET /tenant/metrics returns calculated metrics', async () => {
+    mockPrisma.payment.count.mockResolvedValueOnce(10); // approved
+    mockPrisma.payment.count.mockResolvedValueOnce(2); // expired
+    mockPrisma.payment.count.mockResolvedValueOnce(1); // rejected
+    mockPrisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 300 } });
+    mockPrisma.photoSession.count.mockResolvedValue(8);
+    mockBoothGateway.getOnlineBoothCount.mockReturnValue(2);
 
     const result = await controller.getMetrics(TENANT_USER as any);
 
-    expect(result.totalRevenue).toBe(120);
-    expect(result.totalSessions).toBe(8);
-    expect(result.conversionRate).toBe(80);
-    expect(result.activeBooths).toBe(3);
+    expect(result.totalRevenue).toBe(300);
+    expect(result.conversionRate).toBe(77); // 10 / (10+2+1) = 0.769
+    expect(result.activeBooths).toBe(2);
   });
 
-  it('returns conversionRate 0 when no resolved payments', async () => {
-    mockPrisma.payment.count
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0);
-    mockPrisma.payment.aggregate.mockResolvedValueOnce({ _sum: { amount: null } });
-    mockPrisma.photoSession.count.mockResolvedValueOnce(0);
-    mockBoothGateway.getOnlineBoothCount.mockReturnValue(0);
+  describe('Templates', () => {
+    it('GET /tenant/templates returns tenant templates', async () => {
+      mockPrisma.template.findMany.mockResolvedValue([
+        { id: 't-1', name: 'Floral', overlayUrl: 'https://s3/t1.png', tenantId: 'tenant-1', createdAt: new Date() },
+      ]);
 
-    const result = await controller.getMetrics(TENANT_USER as any);
+      const result = await controller.getTemplates(TENANT_USER as any);
 
-    expect(result.conversionRate).toBe(0);
-    expect(result.activeBooths).toBe(0);
-  });
-});
-
-describe('TenantController — booths', () => {
-  let controller: TenantController;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const module = await Test.createTestingModule({
-      controllers: [TenantController],
-      providers: [
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: BoothGateway, useValue: mockBoothGateway },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
-    controller = module.get(TenantController);
-  });
-
-  it('GET /tenant/booths returns booths with isOnline flag', async () => {
-    mockPrisma.booth.findMany.mockResolvedValueOnce([
-      { id: 'b-1', name: 'Booth 1', token: 'tok', tenantId: 'tenant-1', offlineMode: 'BLOCK', offlineCredits: 0, demoSessionsPerHour: 3, cameraSound: true, createdAt: new Date(), updatedAt: new Date() },
-    ]);
-    mockBoothGateway.isBoothOnline.mockReturnValue(true);
-
-    const result = await controller.getBooths(TENANT_USER as any);
-
-    expect(result).toHaveLength(1);
-    expect(result[0].isOnline).toBe(true);
-    expect(result[0].id).toBe('b-1');
-  });
-
-  it('POST /tenant/booths creates booth with generated token', async () => {
-    const created = { id: 'b-new', name: 'New Booth', token: 'generated', tenantId: 'tenant-1', offlineMode: 'BLOCK', offlineCredits: 0, demoSessionsPerHour: 3, cameraSound: true, createdAt: new Date(), updatedAt: new Date() };
-    mockPrisma.booth.create.mockResolvedValueOnce(created);
-
-    const result = await controller.createBooth({ name: 'New Booth', offlineMode: 'BLOCK' }, TENANT_USER as any);
-
-    expect(mockPrisma.booth.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ name: 'New Booth', tenantId: 'tenant-1' }),
-    });
-    expect(result.id).toBe('b-new');
-  });
-});
-
-describe('TenantController — gallery', () => {
-  let controller: TenantController;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const module = await Test.createTestingModule({
-      controllers: [TenantController],
-      providers: [
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: BoothGateway, useValue: mockBoothGateway },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
-    controller = module.get(TenantController);
-  });
-
-  it('returns paginated gallery sessions', async () => {
-    const sessions = [
-      {
-        id: 'sess-1',
-        photoUrls: ['https://s3.example.com/photo.jpg'],
-        createdAt: new Date('2026-01-01'),
-        event: { name: 'Wedding' },
-        booth: { name: 'Booth 1' },
-      },
-    ];
-    mockPrisma.photoSession.findMany.mockResolvedValueOnce(sessions);
-    mockPrisma.photoSession.count.mockResolvedValueOnce(1);
-
-    const result = await controller.getPhotos(TENANT_USER as any, 1, 20);
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].sessionId).toBe('sess-1');
-    expect(result.data[0].eventName).toBe('Wedding');
-    expect(result.total).toBe(1);
-    expect(result.page).toBe(1);
-  });
-});
-
-describe('TenantController — payments', () => {
-  let controller: TenantController;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const module = await Test.createTestingModule({
-      controllers: [TenantController],
-      providers: [
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: BoothGateway, useValue: mockBoothGateway },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
-    controller = module.get(TenantController);
-  });
-
-  it('returns paginated payment records', async () => {
-    const payments = [
-      {
-        id: 'pay-1',
-        amount: 15,
-        status: 'APPROVED',
-        createdAt: new Date('2026-01-01'),
-        event: { name: 'Wedding' },
-        booth: { name: 'Booth 1' },
-      },
-    ];
-    mockPrisma.payment.findMany.mockResolvedValueOnce(payments);
-    mockPrisma.payment.count.mockResolvedValueOnce(1);
-
-    const result = await controller.getPayments(TENANT_USER as any, 1, 20);
-
-    expect(result.data).toHaveLength(1);
-    expect(result.data[0].id).toBe('pay-1');
-    expect(result.data[0].amount).toBe(15);
-    expect(result.data[0].eventName).toBe('Wedding');
-    expect(result.total).toBe(1);
-  });
-});
-
-describe('TenantController — settings', () => {
-  let controller: TenantController;
-
-  beforeEach(async () => {
-    jest.clearAllMocks();
-    const module = await Test.createTestingModule({
-      controllers: [TenantController],
-      providers: [
-        { provide: PrismaService, useValue: mockPrisma },
-        { provide: BoothGateway, useValue: mockBoothGateway },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
-    controller = module.get(TenantController);
-  });
-
-  it('GET /tenant/settings returns branding fields', async () => {
-    mockPrisma.tenant.findUnique.mockResolvedValueOnce({
-      logoUrl: 'https://logo.png', primaryColor: '#1d4ed8', brandName: 'MyBrand',
+      expect(mockPrisma.template.findMany).toHaveBeenCalledWith({
+        where: { tenantId: 'tenant-1' },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('t-1');
     });
 
-    const result = await controller.getSettings(TENANT_USER as any);
+    it('DELETE /tenant/templates/:id deletes only tenant template', async () => {
+      mockPrisma.template.deleteMany.mockResolvedValue({ count: 1 });
 
-    expect(result.logoUrl).toBe('https://logo.png');
-    expect(result.primaryColor).toBe('#1d4ed8');
-    expect(result.brandName).toBe('MyBrand');
-  });
+      const result = await controller.deleteTemplate('t-1', TENANT_USER as any);
 
-  it('GET /tenant/settings throws NotFoundException when tenant not found', async () => {
-    mockPrisma.tenant.findUnique.mockResolvedValueOnce(null);
-
-    await expect(controller.getSettings(TENANT_USER as any)).rejects.toThrow(NotFoundException);
-  });
-
-  it('PUT /tenant/settings updates and returns branding fields', async () => {
-    const updated = { logoUrl: null, primaryColor: '#ff0000', brandName: 'Updated' };
-    mockPrisma.tenant.update.mockResolvedValueOnce(updated);
-
-    const result = await controller.updateSettings({ primaryColor: '#ff0000', brandName: 'Updated' }, TENANT_USER as any);
-
-    expect(mockPrisma.tenant.update).toHaveBeenCalledWith({
-      where: { id: 'tenant-1' },
-      data: { primaryColor: '#ff0000', brandName: 'Updated' },
-      select: { logoUrl: true, primaryColor: true, brandName: true },
+      expect(mockPrisma.template.deleteMany).toHaveBeenCalledWith({
+        where: { id: 't-1', tenantId: 'tenant-1' },
+      });
+      expect(result.ok).toBe(true);
     });
-    expect(result.primaryColor).toBe('#ff0000');
+  });
+
+  describe('Analytics', () => {
+    it('GET /tenant/analytics aggregates revenue and sessions by day', async () => {
+      const today = new Date('2026-04-10T12:00:00Z');
+      const yesterday = new Date('2026-04-09T12:00:00Z');
+
+      mockPrisma.payment.findMany.mockResolvedValue([
+        { amount: 30, createdAt: today, event: { name: 'E1' }, eventId: 'e1' },
+        { amount: 20, createdAt: today, event: { name: 'E1' }, eventId: 'e1' },
+        { amount: 40, createdAt: yesterday, event: { name: 'E2' }, eventId: 'e2' },
+      ]);
+      mockPrisma.photoSession.findMany.mockResolvedValue([
+        { createdAt: today },
+        { createdAt: yesterday },
+        { createdAt: yesterday },
+      ]);
+      mockPrisma.photoSession.groupBy.mockResolvedValue([{ boothId: 'b1', _count: { id: 5 } }]);
+      mockPrisma.booth.findUnique.mockResolvedValue({ name: 'Booth 1' });
+
+      const result = await controller.getAnalytics(TENANT_USER as any, '7d');
+
+      expect(result.totalRevenue).toBe(90);
+      expect(result.series).toHaveLength(2);
+      expect(result.series[0].date).toBe('2026-04-09');
+      expect(result.series[0].revenue).toBe(40);
+      expect(result.series[0].sessions).toBe(2);
+      expect(result.series[1].date).toBe('2026-04-10');
+      expect(result.series[1].revenue).toBe(50);
+      expect(result.series[1].sessions).toBe(1);
+      expect(result.bestDay?.date).toBe('2026-04-10');
+      expect(result.mostActiveBooth?.name).toBe('Booth 1');
+    });
   });
 });

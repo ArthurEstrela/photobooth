@@ -3,21 +3,29 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
   Request,
   UseGuards,
   NotFoundException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothGateway } from '../gateways/booth.gateway';
+import { S3StorageAdapter } from '../adapters/storage/s3.adapter';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RequestUser } from '../auth/jwt.strategy';
 import {
   TenantMetrics,
   IBoothWithStatus,
+  ITemplate,
+  IEventTemplate,
+  IAnalyticsData,
   OfflineMode,
   PaginatedResponse,
   IGallerySession,
@@ -36,6 +44,7 @@ export class TenantController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly boothGateway: BoothGateway,
+    private readonly s3: S3StorageAdapter,
   ) {}
 
   @Get('metrics')
@@ -65,11 +74,15 @@ export class TenantController {
   @Get('booths')
   async getBooths(@Request() req: AuthReq): Promise<IBoothWithStatus[]> {
     const { tenantId } = req.user;
-    const booths = await this.prisma.booth.findMany({ where: { tenantId } });
+    const booths = await this.prisma.booth.findMany({
+      where: { tenantId },
+      include: { activeEvent: { select: { id: true, name: true } } },
+    });
     return booths.map((b) => ({
       ...b,
       offlineMode: b.offlineMode as OfflineMode,
       isOnline: this.boothGateway.isBoothOnline(b.id),
+      activeEvent: b.activeEvent,
     }));
   }
 
@@ -94,19 +107,30 @@ export class TenantController {
     @Request() req: AuthReq,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('boothId') boothId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ): Promise<PaginatedResponse<IGallerySession>> {
     const { tenantId } = req.user;
     const skip = (Number(page) - 1) * Number(limit);
 
+    const where: any = { booth: { tenantId } };
+    if (boothId) where.boothId = boothId;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
+
     const [sessions, total] = await Promise.all([
       this.prisma.photoSession.findMany({
-        where: { booth: { tenantId } },
+        where,
         include: { event: { select: { name: true } }, booth: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: Number(limit),
       }),
-      this.prisma.photoSession.count({ where: { booth: { tenantId } } }),
+      this.prisma.photoSession.count({ where }),
     ]);
 
     return {
@@ -128,13 +152,24 @@ export class TenantController {
     @Request() req: AuthReq,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
+    @Query('status') status?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ): Promise<PaginatedResponse<IPaymentRecord>> {
     const { tenantId } = req.user;
     const skip = (Number(page) - 1) * Number(limit);
 
+    const where: any = { booth: { tenantId } };
+    if (status) where.status = status;
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(from);
+      if (to) where.createdAt.lte = new Date(to);
+    }
+
     const [payments, total] = await Promise.all([
       this.prisma.payment.findMany({
-        where: { booth: { tenantId } },
+        where,
         include: {
           event: { select: { name: true } },
           booth: { select: { name: true } },
@@ -143,7 +178,7 @@ export class TenantController {
         skip,
         take: Number(limit),
       }),
-      this.prisma.payment.count({ where: { booth: { tenantId } } }),
+      this.prisma.payment.count({ where }),
     ]);
 
     return {
@@ -153,6 +188,7 @@ export class TenantController {
         status: p.status as any,
         eventName: p.event.name,
         boothName: p.booth.name,
+        paymentType: (p.paymentType as 'MAIN' | 'DIGITAL') ?? 'MAIN',
         createdAt: p.createdAt,
       })),
       total,
@@ -181,5 +217,186 @@ export class TenantController {
       data: body,
       select: { logoUrl: true, primaryColor: true, brandName: true },
     });
+  }
+
+  // ─── Templates ──────────────────────────────────────────────────────────────
+
+  @Get('templates')
+  async getTemplates(@Request() req: AuthReq): Promise<ITemplate[]> {
+    return this.prisma.template.findMany({
+      where: { tenantId: req.user.tenantId },
+      orderBy: { createdAt: 'asc' },
+    }) as any;
+  }
+
+  @Post('templates')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTemplate(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('name') name: string,
+    @Request() req: AuthReq,
+  ): Promise<ITemplate> {
+    const url = await this.s3.uploadFile('templates', file.buffer, file.mimetype);
+    return this.prisma.template.create({
+      data: { name, overlayUrl: url, tenantId: req.user.tenantId },
+    }) as any;
+  }
+
+  @Delete('templates/:id')
+  async deleteTemplate(@Param('id') id: string, @Request() req: AuthReq) {
+    await this.prisma.template.deleteMany({ where: { id, tenantId: req.user.tenantId } });
+    return { ok: true };
+  }
+
+  @Get('events/:id/templates')
+  async getEventTemplates(
+    @Param('id') eventId: string,
+    @Request() req: AuthReq,
+  ): Promise<IEventTemplate[]> {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, tenantId: req.user.tenantId },
+    });
+    if (!event) throw new NotFoundException('Event not found');
+    return this.prisma.eventTemplate.findMany({
+      where: { eventId },
+      include: { template: true },
+      orderBy: { order: 'asc' },
+    }) as any;
+  }
+
+  @Put('events/:id/templates')
+  async setEventTemplates(
+    @Param('id') eventId: string,
+    @Body() body: { templateIds: string[] },
+    @Request() req: AuthReq,
+  ): Promise<IEventTemplate[]> {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, tenantId: req.user.tenantId },
+    });
+    if (!event) throw new NotFoundException('Event not found');
+    await this.prisma.eventTemplate.deleteMany({ where: { eventId } });
+    if (body.templateIds.length > 0) {
+      await this.prisma.eventTemplate.createMany({
+        data: body.templateIds.map((templateId, order) => ({ eventId, templateId, order })),
+      });
+    }
+    return this.getEventTemplates(eventId, req);
+  }
+
+  @Put('booths/:id/event')
+  async setBoothEvent(
+    @Param('id') boothId: string,
+    @Body() body: { eventId: string | null },
+    @Request() req: AuthReq,
+  ) {
+    const booth = await this.prisma.booth.findFirst({
+      where: { id: boothId, tenantId: req.user.tenantId },
+    });
+    if (!booth) throw new NotFoundException('Booth not found');
+    return this.prisma.booth.update({
+      where: { id: boothId },
+      data: { activeEventId: body.eventId },
+    });
+  }
+
+  @Post('settings/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadLogo(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: AuthReq,
+  ): Promise<{ logoUrl: string }> {
+    const url = await this.s3.uploadFile('logos', file.buffer, file.mimetype);
+    await this.prisma.tenant.update({
+      where: { id: req.user.tenantId },
+      data: { logoUrl: url },
+    });
+    return { logoUrl: url };
+  }
+
+  // ─── Analytics ───────────────────────────────────────────────────────────────
+
+  @Get('analytics')
+  async getAnalytics(
+    @Request() req: AuthReq,
+    @Query('period') period = '30d',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<IAnalyticsData> {
+    const { tenantId } = req.user;
+    const endDate = to ? new Date(to) : new Date();
+    let startDate: Date;
+    if (from) {
+      startDate = new Date(from);
+    } else {
+      const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+      startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - days);
+    }
+
+    const dateFilter = { gte: startDate, lte: endDate };
+    const tenantFilter = { booth: { tenantId } };
+
+    const [payments, sessions, topBoothRows] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { ...tenantFilter, status: 'APPROVED', createdAt: dateFilter },
+        include: { event: { select: { id: true, name: true } } },
+      }),
+      this.prisma.photoSession.findMany({
+        where: { ...tenantFilter, createdAt: dateFilter },
+        select: { createdAt: true },
+      }),
+      this.prisma.photoSession.groupBy({
+        by: ['boothId'],
+        where: { ...tenantFilter, createdAt: dateFilter },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
+        take: 1,
+      }),
+    ]);
+
+    const dayMap = new Map<string, { revenue: number; sessions: number }>();
+    const getOrCreate = (d: string) => {
+      if (!dayMap.has(d)) dayMap.set(d, { revenue: 0, sessions: 0 });
+      return dayMap.get(d)!;
+    };
+    for (const p of payments) {
+      getOrCreate(p.createdAt.toISOString().slice(0, 10)).revenue += Number(p.amount);
+    }
+    for (const s of sessions) {
+      getOrCreate(s.createdAt.toISOString().slice(0, 10)).sessions += 1;
+    }
+    const series = Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { revenue, sessions }]) => ({ date, revenue, sessions }));
+
+    const totalRevenue = payments.reduce((s, p) => s + Number(p.amount), 0);
+    const avgTicket = payments.length === 0 ? 0 : totalRevenue / payments.length;
+
+    let bestDay: { date: string; revenue: number } | null = null;
+    for (const [date, { revenue }] of dayMap) {
+      if (!bestDay || revenue > bestDay.revenue) bestDay = { date, revenue };
+    }
+
+    let mostActiveBooth: { name: string; sessions: number } | null = null;
+    if (topBoothRows.length > 0) {
+      const booth = await this.prisma.booth.findUnique({
+        where: { id: topBoothRows[0].boothId },
+        select: { name: true },
+      });
+      if (booth) mostActiveBooth = { name: booth.name, sessions: topBoothRows[0]._count.id };
+    }
+
+    const eventRevMap = new Map<string, { name: string; revenue: number }>();
+    for (const p of payments) {
+      const e = eventRevMap.get(p.eventId) ?? { name: p.event.name, revenue: 0 };
+      e.revenue += Number(p.amount);
+      eventRevMap.set(p.eventId, e);
+    }
+    const topEvents = Array.from(eventRevMap.entries())
+      .map(([id, { name, revenue }]) => ({ id, name, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    return { series, totalRevenue, avgTicket, bestDay, mostActiveBooth, topEvents };
   }
 }

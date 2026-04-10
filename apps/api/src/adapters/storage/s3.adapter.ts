@@ -1,5 +1,3 @@
-// apps/api/src/adapters/storage/s3.adapter.ts
-
 import { Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
@@ -20,34 +18,34 @@ export class S3StorageAdapter {
   }
 
   async uploadPhoto(sessionId: string, base64Data: string): Promise<string> {
-    const fileName = `sessions/${sessionId}/${Date.now()}.png`;
-    
-    // Remove base64 prefix if exists (e.g., data:image/png;base64,)
     const base64Content = base64Data.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Content, 'base64');
+    return this.uploadFile(`sessions/${sessionId}`, buffer, 'image/png');
+  }
+
+  async uploadFile(folder: string, buffer: Buffer, mimeType: string): Promise<string> {
+    const ext = mimeType.split('/')[1] ?? 'png';
+    const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
     try {
       await this.s3Client.send(
         new PutObjectCommand({
           Bucket: this.bucketName,
-          Key: fileName,
+          Key: key,
           Body: buffer,
-          ContentType: 'image/png',
-          // ACL: 'public-read', // Depends on bucket policy
-        })
+          ContentType: mimeType,
+        }),
       );
 
-      let url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
-      
+      let url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
       if (process.env.AWS_CLOUDFRONT_DOMAIN) {
-        url = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${fileName}`;
+        url = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${key}`;
       }
-
-      this.logger.log(`Photo uploaded: ${url}`);
+      this.logger.log(`File uploaded: ${url}`);
       return url;
     } catch (error) {
-      this.logger.error('Error uploading to S3', error);
-      throw new Error('Failed to upload photo to cloud storage');
+      this.logger.error('Error uploading file to S3', error);
+      throw new Error('Failed to upload file to cloud storage');
     }
   }
 }
