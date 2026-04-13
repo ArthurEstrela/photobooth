@@ -7,6 +7,7 @@ interface Props {
   sessionId: string;
   photoCount: 1 | 2 | 4;
   cameraSound: boolean;
+  onProcessing?: () => void;
   onStripReady: (stripDataUrl: string) => void;
 }
 
@@ -15,6 +16,7 @@ export const CameraEngine: React.FC<Props> = ({
   sessionId: _sessionId,
   photoCount,
   cameraSound,
+  onProcessing,
   onStripReady,
 }) => {
   const { videoRef, error, isLoading } = useWebcam();
@@ -46,10 +48,6 @@ export const CameraEngine: React.FC<Props> = ({
     ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    if (overlayUrl && overlayImageRef.current) {
-      ctx.drawImage(overlayImageRef.current, 0, 0, canvas.width, canvas.height);
-    }
-
     return canvas.toDataURL('image/jpeg', 0.95);
   }, [overlayUrl]);
 
@@ -65,6 +63,14 @@ export const CameraEngine: React.FC<Props> = ({
             stripCanvas.width = img.width;
             stripCanvas.height = img.height;
             ctx.drawImage(img, 0, 0);
+            if (
+              overlayUrl && 
+              overlayImageRef.current && 
+              overlayImageRef.current.complete && 
+              overlayImageRef.current.naturalWidth > 0
+            ) {
+              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
+            }
             resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
           };
           img.src = photos[0];
@@ -79,6 +85,14 @@ export const CameraEngine: React.FC<Props> = ({
             stripCanvas.height = img1.height * 2;
             ctx.drawImage(img1, 0, 0);
             ctx.drawImage(img2, 0, img1.height);
+            if (
+              overlayUrl && 
+              overlayImageRef.current && 
+              overlayImageRef.current.complete && 
+              overlayImageRef.current.naturalWidth > 0
+            ) {
+              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
+            }
             resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
           };
           img1.onload = onLoad;
@@ -103,6 +117,14 @@ export const CameraEngine: React.FC<Props> = ({
             ctx.drawImage(imgs[1] ?? imgs[0], w, 0, w, h);
             ctx.drawImage(imgs[2] ?? imgs[0], 0, h, w, h);
             ctx.drawImage(imgs[3] ?? imgs[0], w, h, w, h);
+            if (
+              overlayUrl && 
+              overlayImageRef.current && 
+              overlayImageRef.current.complete && 
+              overlayImageRef.current.naturalWidth > 0
+            ) {
+              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
+            }
             resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
           };
           imgs.forEach((img) => (img.onload = onLoad));
@@ -119,16 +141,24 @@ export const CameraEngine: React.FC<Props> = ({
     const photo = captureFrame();
     if (!photo) return;
 
-    setCapturedPhotos((prev) => {
-      const next = [...prev, photo];
-      if (next.length < photoCount) {
-        setTimeout(() => setShowCountdown(true), 500);
-      } else {
-        buildStrip(next).then(onStripReady);
-      }
-      return next;
-    });
-  }, [photoCount, captureFrame, buildStrip, playShutter, onStripReady]);
+    const next = [...capturedPhotos, photo];
+    setCapturedPhotos(next);
+
+    if (next.length < photoCount) {
+      setTimeout(() => setShowCountdown(true), 500);
+    } else {
+      onProcessing?.();
+      buildStrip(next).then(onStripReady);
+    }
+  }, [
+    capturedPhotos,
+    photoCount,
+    captureFrame,
+    buildStrip,
+    playShutter,
+    onProcessing,
+    onStripReady,
+  ]);
 
   useEffect(() => {
     setShowCountdown(true);

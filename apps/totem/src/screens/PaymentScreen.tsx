@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { PixPaymentResponse } from '@packages/shared';
+import axios from 'axios';
 
 interface PaymentScreenProps {
   amount: number;
@@ -102,6 +103,21 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({
             </span>
           </button>
           {copied && <p className="text-green-400 text-sm -mt-4">Copiado!</p>}
+
+          {/* Dev-only force payment button */}
+          {import.meta.env.DEV && (
+            <button
+              onClick={() => {
+                axios.post(import.meta.env.VITE_API_URL + '/payments/webhook', {
+                  action: 'payment.updated',
+                  data: { id: payment.paymentId },
+                }).catch(console.error);
+              }}
+              className="mt-4 px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg text-sm font-semibold hover:bg-red-600/40 transition-colors"
+            >
+              [DEV] Simular Pagamento Concluído
+            </button>
+          )}
         </>
       ) : (
         <div className="flex flex-col items-center gap-4">

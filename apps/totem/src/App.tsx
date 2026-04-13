@@ -111,6 +111,7 @@ export default function App() {
           sessionId={machine.sessionId ?? 'session'}
           photoCount={(event?.photoCount ?? 1) as 1 | 2 | 4}
           cameraSound={config?.cameraSound ?? true}
+          onProcessing={() => machine.setProcessing()}
           onStripReady={(strip) => machine.completeSession(strip)}
         />
       )}

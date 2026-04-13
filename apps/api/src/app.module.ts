@@ -24,7 +24,10 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['../../.env', '.env'],
+    }),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,

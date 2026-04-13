@@ -113,6 +113,7 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
     stripDataUrl,
     startPayment,
     completeSession,
+    setProcessing: () => transition(BoothState.PROCESSING),
     resetToIdle,
   };
 }

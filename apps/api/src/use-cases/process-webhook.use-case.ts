@@ -19,8 +19,13 @@ export class ProcessWebhookUseCase {
     if (action !== 'payment.updated') return;
 
     const externalId = data.id.toString();
-    const payment = await this.prisma.payment.findUnique({
-      where: { externalId },
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        OR: [
+          { externalId: externalId },
+          { id: externalId }, // DEV MOCK fallback
+        ],
+      },
       include: { booth: true },
     });
 

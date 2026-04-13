@@ -5,7 +5,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 export class S3StorageAdapter {
   private readonly logger = new Logger(S3StorageAdapter.name);
   private readonly s3Client: S3Client;
-  private readonly bucketName = process.env.AWS_S3_BUCKET_NAME;
+  private readonly bucketName = process.env.AWS_S3_BUCKET;
 
   constructor() {
     this.s3Client = new S3Client({
