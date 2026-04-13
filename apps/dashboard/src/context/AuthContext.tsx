@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 interface AuthContextValue {
   token: string | null;
   tenantId: string | null;
+  user: { email: string } | null;
   isAuthenticated: boolean;
   login: (dto: LoginDto) => Promise<void>;
   register: (dto: RegisterDto) => Promise<void>;
@@ -20,12 +21,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tenantId, setTenantId] = useState<string | null>(
     () => localStorage.getItem('tenantId'),
   );
+  const [email, setEmail] = useState<string | null>(
+    () => localStorage.getItem('email'),
+  );
 
   const persist = (data: AuthResponseDto) => {
     setToken(data.accessToken);
     setTenantId(data.tenantId);
+    setEmail(data.email);
     localStorage.setItem('token', data.accessToken);
     localStorage.setItem('tenantId', data.tenantId);
+    localStorage.setItem('email', data.email);
   };
 
   const login = async (dto: LoginDto) => {
@@ -41,13 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setToken(null);
     setTenantId(null);
+    setEmail(null);
     localStorage.removeItem('token');
     localStorage.removeItem('tenantId');
+    localStorage.removeItem('email');
   };
+
+  const user = email ? { email } : null;
 
   return (
     <AuthContext.Provider
-      value={{ token, tenantId, isAuthenticated: !!token, login, register, logout }}
+      value={{ token, tenantId, user, isAuthenticated: !!token, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>

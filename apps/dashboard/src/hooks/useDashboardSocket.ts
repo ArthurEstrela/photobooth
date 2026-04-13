@@ -1,11 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+interface RecentPayment {
+  paymentId: string;
+  eventName?: string;
+  boothName?: string;
+  amount: number;
+}
+
 export const useDashboardSocket = () => {
   const queryClient = useQueryClient();
+  const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -24,7 +32,8 @@ export const useDashboardSocket = () => {
       console.error('Dashboard socket auth failed:', err.message);
     });
 
-    socket.on('payment_approved', () => {
+    socket.on('payment_approved', (data: RecentPayment) => {
+      setRecentPayments((prev) => [data, ...prev].slice(0, 20));
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
     });
@@ -44,4 +53,6 @@ export const useDashboardSocket = () => {
 
     return () => { socket.disconnect(); };
   }, [queryClient]);
+
+  return { recentPayments };
 };

@@ -91,7 +91,7 @@ export const Home: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${v}`} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={formatDate} />
+                  <Tooltip formatter={(v: any) => formatCurrency(v as number)} labelFormatter={formatDate as any} />
                   <Line type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -111,7 +111,7 @@ export const Home: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip labelFormatter={formatDate} />
+                  <Tooltip labelFormatter={formatDate as any} />
                   <Bar dataKey="sessions" fill="#4f46e5" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
