@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Eye } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { Card, Button, Input, Modal, Skeleton } from '../components/ui';
-import { useSettings, useUpdateSettings, useUploadLogo } from '../hooks/api/useSettings';
+import { useSettings, useUpdateSettings, useUploadLogo, useChangePassword } from '../hooks/api/useSettings';
 import { useAuth } from '../context/AuthContext';
 
 function hexToRgb(hex: string): string {
@@ -16,12 +16,14 @@ export const SettingsPage: React.FC = () => {
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const uploadLogo = useUploadLogo();
+  const changePassword = useChangePassword();
   const { user } = useAuth();
 
   const [brandName, setBrandName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#4f46e5');
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwError, setPwError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +43,28 @@ export const SettingsPage: React.FC = () => {
 
   const handleSaveBranding = () => {
     updateSettings.mutate({ brandName, primaryColor });
+  };
+
+  const handleClosePasswordModal = () => {
+    setPasswordOpen(false);
+    setPwForm({ current: '', next: '', confirm: '' });
+    setPwError(null);
+    changePassword.reset();
+  };
+
+  const handleChangePassword = () => {
+    setPwError(null);
+    changePassword.mutate(
+      { currentPassword: pwForm.current, newPassword: pwForm.next },
+      {
+        onSuccess: handleClosePasswordModal,
+        onError: (err: any) => {
+          setPwError(
+            err?.response?.data?.message ?? 'Erro ao alterar senha. Tente novamente.',
+          );
+        },
+      },
+    );
   };
 
   const handleLogoUpload = (file: File) => {
@@ -132,7 +156,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* Change Password Modal */}
-      <Modal open={passwordOpen} onClose={() => setPasswordOpen(false)} title="Alterar senha">
+      <Modal open={passwordOpen} onClose={handleClosePasswordModal} title="Alterar senha">
         <div className="space-y-4">
           <Input label="Senha atual" type="password" value={pwForm.current} onChange={(e) => setPwForm(p => ({ ...p, current: e.target.value }))} />
           <Input label="Nova senha" type="password" value={pwForm.next} onChange={(e) => setPwForm(p => ({ ...p, next: e.target.value }))} />
@@ -143,9 +167,19 @@ export const SettingsPage: React.FC = () => {
             onChange={(e) => setPwForm(p => ({ ...p, confirm: e.target.value }))}
             error={pwForm.confirm && pwForm.next !== pwForm.confirm ? 'As senhas não coincidem' : undefined}
           />
+          {pwError && <p className="text-sm text-red-600">{pwError}</p>}
           <div className="flex gap-3 justify-end pt-2">
-            <Button variant="ghost" onClick={() => setPasswordOpen(false)}>Cancelar</Button>
-            <Button disabled={!pwForm.current || !pwForm.next || pwForm.next !== pwForm.confirm}>
+            <Button variant="ghost" onClick={handleClosePasswordModal}>Cancelar</Button>
+            <Button
+              onClick={handleChangePassword}
+              loading={changePassword.isPending}
+              disabled={
+                !pwForm.current ||
+                !pwForm.next ||
+                pwForm.next !== pwForm.confirm ||
+                changePassword.isPending
+              }
+            >
               Alterar
             </Button>
           </div>

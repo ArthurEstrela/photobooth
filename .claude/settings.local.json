@@ -4,7 +4,12 @@
       "Bash(ls apps/dashboard/tailwind.config.*)",
       "Bash(ls apps/dashboard/src/components/ui/*.test.tsx)",
       "Bash(npx vitest:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(npx turbo:*)",
+      "Bash(ls apps/api/.env*)",
+      "Bash(ls apps/dashboard/.env*)",
+      "Bash(ls apps/totem/.env*)",
+      "Bash(ls .env*)"
     ]
   }
 }

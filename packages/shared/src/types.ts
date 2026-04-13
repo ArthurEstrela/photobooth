@@ -95,6 +95,11 @@ export interface AuthResponseDto {
   email: string;
 }
 
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface BoothBranding {
   logoUrl: string | null;
   primaryColor: string | null;

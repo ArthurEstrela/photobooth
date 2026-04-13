@@ -14,8 +14,8 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
   const [state, setState] = useState<BoothState>(BoothState.IDLE);
   const [currentPayment, setCurrentPayment] = useState<PixPaymentResponse | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [stripDataUrl, setStripDataUrl] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
-  const deliveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const transition = useCallback(
     (newState: BoothState) => {
@@ -77,36 +77,42 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
   );
 
   const completeSession = useCallback(
-    async (stripDataUrl: string) => {
+    async (dataUrl: string) => {
+      setStripDataUrl(dataUrl);
       const totemAPI = (window as any).totemAPI;
       if (sessionId && totemAPI?.saveOfflinePhoto && totemAPI?.printPhoto) {
-        totemAPI.saveOfflinePhoto({ sessionId, photoBase64: stripDataUrl });
+        totemAPI.saveOfflinePhoto({ sessionId, photoBase64: dataUrl });
         totemAPI.printPhoto();
       }
       transition(BoothState.DELIVERY);
-      deliveryTimeoutRef.current = setTimeout(() => {
-        setCurrentPayment(null);
-        setSessionId(null);
-        transition(BoothState.IDLE);
-      }, 8000);
+      // NOTE: auto-reset is intentionally removed here.
+      // DeliveryScreen drives the flow via onDone → machine.reset().
     },
     [sessionId, transition],
   );
 
+  // Reset stripDataUrl when returning to IDLE so stale data is never reused
   useEffect(() => {
-    return () => {
-      if (deliveryTimeoutRef.current) {
-        clearTimeout(deliveryTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (state === BoothState.IDLE) {
+      setStripDataUrl('');
+      setCurrentPayment(null);
+      setSessionId(null);
+    }
+  }, [state]);
+
+  /** Called by DeliveryScreen when the user flow ends. */
+  const resetToIdle = useCallback(() => {
+    transition(BoothState.IDLE);
+  }, [transition]);
 
   return {
     state,
     socket: socketRef.current,
     currentPayment,
     sessionId,
+    stripDataUrl,
     startPayment,
     completeSession,
+    resetToIdle,
   };
 }

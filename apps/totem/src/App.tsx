@@ -123,10 +123,10 @@ export default function App() {
       {machine.state === BoothState.DELIVERY && (
         <DeliveryScreen
           sessionId={machine.sessionId ?? ''}
-          photoUrl={''}
+          photoUrl={machine.stripDataUrl}
           digitalPrice={event?.digitalPrice ?? null}
           brandName={config?.branding.brandName ?? null}
-          onDone={() => machine.startPayment('', '', 0)}
+          onDone={() => machine.resetToIdle()}
         />
       )}
 

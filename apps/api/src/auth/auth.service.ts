@@ -2,10 +2,12 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto, LoginDto, AuthResponseDto } from '@packages/shared';
+import { RegisterDto, LoginDto, AuthResponseDto, ChangePasswordDto } from '@packages/shared';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -39,6 +41,27 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Credenciais inválidas');
 
     return this.buildToken(tenant);
+  }
+
+  async changePassword(tenantId: string, dto: ChangePasswordDto): Promise<void> {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+    });
+
+    const valid = await bcrypt.compare(dto.currentPassword, tenant.passwordHash);
+    if (!valid) {
+      throw new BadRequestException('Senha atual incorreta');
+    }
+
+    if (dto.newPassword.length < 8) {
+      throw new BadRequestException('A nova senha deve ter pelo menos 8 caracteres');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { passwordHash },
+    });
   }
 
   private buildToken(tenant: {

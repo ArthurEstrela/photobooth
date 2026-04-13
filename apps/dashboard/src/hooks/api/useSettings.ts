@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../lib/api';
-import { ITenantSettings, UpdateTenantSettingsDto } from '@packages/shared';
+import { ITenantSettings, UpdateTenantSettingsDto, ChangePasswordDto } from '@packages/shared';
 
 export const useSettings = () =>
   useQuery<ITenantSettings>({
@@ -38,3 +38,11 @@ export const useUploadLogo = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
   });
 };
+
+export const useChangePassword = () =>
+  useMutation({
+    mutationFn: async (dto: ChangePasswordDto) => {
+      await api.post('/auth/change-password', dto);
+    },
+  });
+
