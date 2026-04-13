@@ -23,3 +23,18 @@ export const useUpdateSettings = () => {
     },
   });
 };
+
+export const useUploadLogo = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await api.post('/tenant/settings/logo', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data as { logoUrl: string };
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
+  });
+};

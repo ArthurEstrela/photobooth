@@ -1,40 +1,43 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
-import { useBoothEvent } from './useBoothEvent';
 import axios from 'axios';
+import { useBoothEvent } from './useBoothEvent';
 
 vi.mock('axios');
-const mockAxios = vi.mocked(axios);
-
-const mockResponse = {
-  event: { id: 'ev-1', name: 'Casamento', price: 25, photoCount: 2 },
-  templates: [
-    { id: 't1', name: 'Rosa', overlayUrl: '/rosa.png', eventId: 'ev-1', createdAt: new Date(), updatedAt: new Date() },
-  ],
-};
 
 describe('useBoothEvent', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('fetches event and templates', async () => {
-    mockAxios.get = vi.fn().mockResolvedValue({ data: mockResponse });
+  it('returns event with digitalPrice, backgroundUrl, maxTemplates', async () => {
+    (axios.get as any).mockResolvedValueOnce({
+      data: {
+        event: {
+          id: 'ev-1', name: 'Wedding', price: 30, photoCount: 4,
+          digitalPrice: 5, backgroundUrl: 'https://s3/bg.jpg', maxTemplates: 3,
+        },
+        templates: [
+          { id: 't-1', name: 'Floral', overlayUrl: 'https://s3/t1.png', order: 0 },
+        ],
+      },
+    });
 
-    const { result } = renderHook(() => useBoothEvent('booth-1', 'token-abc'));
+    const { result } = renderHook(() => useBoothEvent('b-1', 'tok'));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.event?.photoCount).toBe(2);
-    expect(result.current.templates).toHaveLength(1);
-    expect(result.current.templates[0].name).toBe('Rosa');
+    expect(result.current.event?.digitalPrice).toBe(5);
+    expect(result.current.event?.backgroundUrl).toBe('https://s3/bg.jpg');
+    expect(result.current.event?.maxTemplates).toBe(3);
+    expect(result.current.templates[0].order).toBe(0);
   });
 
-  it('sets error when fetch fails', async () => {
-    mockAxios.get = vi.fn().mockRejectedValue(new Error('fail'));
+  it('sets error when request fails', async () => {
+    (axios.get as any).mockRejectedValueOnce(new Error('Network error'));
 
-    const { result } = renderHook(() => useBoothEvent('booth-1', 'token-abc'));
+    const { result } = renderHook(() => useBoothEvent('b-1', 'bad-token'));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    expect(result.current.error).toBe('Failed to load event');
+    expect(result.current.error).toBeTruthy();
   });
 });

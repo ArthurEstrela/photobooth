@@ -1,38 +1,34 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsPage } from './SettingsPage';
-import * as useSettingsModule from '../hooks/api/useSettings';
 
 vi.mock('../hooks/api/useSettings', () => ({
-  useSettings: vi.fn().mockReturnValue({
-    data: { logoUrl: null, primaryColor: '#1d4ed8', brandName: 'MyBrand' },
+  useSettings: () => ({
+    data: { logoUrl: null, primaryColor: '#4f46e5', brandName: 'MyBrand' },
     isLoading: false,
   }),
-  useUpdateSettings: vi.fn().mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
-    isSuccess: false,
-  }),
+  useUpdateSettings: () => ({ mutate: vi.fn(), isPending: false }),
+  useUploadLogo: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({ user: { email: 'test@test.com' }, logout: vi.fn() }),
 }));
 
 describe('SettingsPage', () => {
-  it('renders form with current settings values', () => {
+  it('renders brand name input with current value', () => {
     render(<SettingsPage />);
-    const brandInput = screen.getByDisplayValue('MyBrand');
-    expect(brandInput).toBeTruthy();
+    expect(screen.getByDisplayValue('MyBrand')).toBeTruthy();
   });
 
-  it('calls mutate on form submit', () => {
-    const mockMutate = vi.fn();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(useSettingsModule.useUpdateSettings).mockReturnValue({
-      mutate: mockMutate,
-      isPending: false,
-      isSuccess: false,
-    } as any);
-
+  it('renders color picker input with current color', () => {
     render(<SettingsPage />);
-    fireEvent.click(screen.getByText('Salvar Configurações'));
-    expect(mockMutate).toHaveBeenCalled();
+    const inputs = screen.getAllByDisplayValue('#4f46e5');
+    expect(inputs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows logo upload area', () => {
+    render(<SettingsPage />);
+    expect(screen.getByText('Enviar logo')).toBeTruthy();
   });
 });

@@ -1,10 +1,9 @@
-// apps/dashboard/src/App.tsx
-
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DashboardLayout } from './components/DashboardLayout';
 import { Home } from './pages/Home';
 import { EventsPage } from './pages/EventsPage';
+import { FramesPage } from './pages/FramesPage';
 import { GuestPhoto } from './pages/GuestPhoto';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -15,6 +14,7 @@ import { BoothsPage } from './pages/BoothsPage';
 import { GalleryPage } from './pages/GalleryPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 
 const queryClient = new QueryClient();
 
@@ -47,10 +47,12 @@ function AppContent() {
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/events" element={<EventsPage />} />
-          <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/booths" element={<BoothsPage />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/frames" element={<FramesPage />} />
+          <Route path="/gallery" element={<GalleryPage />} />
           <Route path="/payments" element={<PaymentsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </DashboardLayout>

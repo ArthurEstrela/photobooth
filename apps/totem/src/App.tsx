@@ -4,129 +4,132 @@ import { useWebcam } from './hooks/useWebcam';
 import { useBoothConfig } from './hooks/useBoothConfig';
 import { useBoothEvent } from './hooks/useBoothEvent';
 import { useBoothMachine } from './hooks/useBoothMachine';
-import { TemplateSelector } from './components/TemplateSelector';
 import { CameraEngine } from './components/CameraEngine';
-import DeliveryScreen from './components/DeliveryScreen';
+import { IdleScreen } from './screens/IdleScreen';
+import { FrameSelectionScreen } from './screens/FrameSelectionScreen';
+import { PaymentScreen } from './screens/PaymentScreen';
+import { ProcessingScreen } from './screens/ProcessingScreen';
+import { DeliveryScreen } from './screens/DeliveryScreen';
 
-const BOOTH_ID = import.meta.env.VITE_BOOTH_ID ?? '';
+const BOOTH_ID    = import.meta.env.VITE_BOOTH_ID    ?? '';
 const BOOTH_TOKEN = import.meta.env.VITE_BOOTH_TOKEN ?? '';
+
+/** Convert hex color to "r g b" RGB triplet string for CSS custom property */
+function hexToRgbString(hex: string): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `${r} ${g} ${b}`;
+}
 
 export default function App() {
   const { videoRef } = useWebcam();
-  const { config } = useBoothConfig(BOOTH_ID, BOOTH_TOKEN);
+  const { config }   = useBoothConfig(BOOTH_ID, BOOTH_TOKEN);
   const { event, templates, isLoading: eventLoading } = useBoothEvent(BOOTH_ID, BOOTH_TOKEN);
   const machine = useBoothMachine(BOOTH_ID, BOOTH_TOKEN, config);
 
-  const [isSelectingTemplate, setIsSelectingTemplate] = useState(false);
+  const [isSelectingFrame, setIsSelectingFrame]   = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
+  // Apply white-label CSS variables whenever branding changes
+  useEffect(() => {
+    const color = config?.branding.primaryColor;
+    if (color) {
+      try {
+        document.documentElement.style.setProperty('--color-primary-rgb', hexToRgbString(color));
+      } catch {
+        // invalid color format — skip
+      }
+    }
+  }, [config?.branding.primaryColor]);
+
+  // Reset frame selection when returning to IDLE
   useEffect(() => {
     if (machine.state === BoothState.IDLE) {
-      setIsSelectingTemplate(false);
+      setIsSelectingFrame(false);
       setSelectedTemplateId('');
     }
   }, [machine.state]);
 
   const handleIdleTap = () => {
-    if (machine.state === BoothState.IDLE && !eventLoading && templates.length > 0) {
-      setIsSelectingTemplate(true);
+    if (!eventLoading && templates.length > 0) {
+      setIsSelectingFrame(true);
     }
   };
 
-  const handleConfirmTemplate = () => {
+  const handleConfirmFrame = () => {
     if (!event || !selectedTemplateId) return;
-    setIsSelectingTemplate(false);
+    setIsSelectingFrame(false);
     machine.startPayment(event.id, selectedTemplateId, event.price);
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-black">
-      {/* IDLE */}
-      {machine.state === BoothState.IDLE && !isSelectingTemplate && (
-        <div
-          className="flex flex-col items-center justify-center h-full text-white cursor-pointer select-none gap-6"
-          onClick={handleIdleTap}
-        >
-          {config?.branding.logoUrl && (
-            <img src={config.branding.logoUrl} alt="logo" className="h-24 object-contain" />
-          )}
-          <h1 className="text-7xl font-black tracking-tighter">
-            {config?.branding.brandName ?? 'PhotoBooth'}
-          </h1>
-          <p className="text-2xl text-white/60">
-            {eventLoading ? 'Carregando...' : 'Toque para começar'}
-          </p>
-          {!eventLoading && templates.length > 0 && (
-            <div
-              className="mt-4 w-6 h-6 rounded-full animate-ping"
-              style={{ backgroundColor: 'var(--color-primary)' }}
-            />
-          )}
-        </div>
+    <div className="w-screen h-screen overflow-hidden bg-gray-950">
+
+      {/* ── IDLE ─────────────────────────────────────────────── */}
+      {machine.state === BoothState.IDLE && !isSelectingFrame && (
+        <IdleScreen
+          brandName={config?.branding.brandName ?? null}
+          logoUrl={config?.branding.logoUrl ?? null}
+          backgroundUrl={event?.backgroundUrl ?? null}
+          eventLoading={eventLoading}
+          hasEvent={!!event && templates.length > 0}
+          onTap={handleIdleTap}
+        />
       )}
 
-      {/* SELECTING_TEMPLATE */}
-      {machine.state === BoothState.IDLE && isSelectingTemplate && (
-        <TemplateSelector
+      {/* ── SELECTING FRAME ───────────────────────────────────── */}
+      {machine.state === BoothState.IDLE && isSelectingFrame && (
+        <FrameSelectionScreen
           templates={templates}
-          selectedTemplateId={selectedTemplateId}
+          selectedId={selectedTemplateId}
           onSelect={setSelectedTemplateId}
-          onConfirm={handleConfirmTemplate}
+          onConfirm={handleConfirmFrame}
           videoRef={videoRef}
         />
       )}
 
-      {/* WAITING_PAYMENT */}
+      {/* ── WAITING PAYMENT ───────────────────────────────────── */}
       {machine.state === BoothState.WAITING_PAYMENT && (
-        <div className="flex flex-col items-center justify-center h-full text-white gap-8 p-12">
-          <h2 className="text-4xl font-bold">Escaneie para pagar</h2>
-          {machine.currentPayment ? (
-            <>
-              <div className="bg-white p-6 rounded-3xl shadow-2xl">
-                <img
-                  src={`data:image/png;base64,${machine.currentPayment.qrCodeBase64}`}
-                  alt="QR Code PIX"
-                  className="w-64 h-64"
-                />
-              </div>
-              <p className="text-white/50 text-xl font-mono">{machine.currentPayment.qrCode}</p>
-            </>
-          ) : (
-            <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin" />
-          )}
-        </div>
+        <PaymentScreen
+          amount={event?.price ?? 0}
+          payment={machine.currentPayment ?? null}
+          onCancel={() => machine.startPayment('', '', 0)}
+        />
       )}
 
-      {/* IN_SESSION / COUNTDOWN / CAPTURING */}
+      {/* ── IN SESSION / COUNTDOWN / CAPTURING ───────────────── */}
       {(machine.state === BoothState.IN_SESSION ||
         machine.state === BoothState.COUNTDOWN ||
         machine.state === BoothState.CAPTURING) && (
         <CameraEngine
           overlayUrl={selectedTemplate?.overlayUrl}
           sessionId={machine.sessionId ?? 'session'}
-          photoCount={event?.photoCount ?? 1}
+          photoCount={(event?.photoCount ?? 1) as 1 | 2 | 4}
           cameraSound={config?.cameraSound ?? true}
           onStripReady={(strip) => machine.completeSession(strip)}
         />
       )}
 
-      {/* PROCESSING */}
+      {/* ── PROCESSING ────────────────────────────────────────── */}
       {machine.state === BoothState.PROCESSING && (
-        <div className="flex flex-col items-center justify-center h-full text-white gap-6">
-          <div className="w-20 h-20 border-4 border-white border-t-transparent rounded-full animate-spin" />
-          <p className="text-3xl font-semibold">Processando sua foto...</p>
-        </div>
+        <ProcessingScreen photoCount={event?.photoCount ?? 1} />
       )}
 
-      {/* DELIVERY */}
+      {/* ── DELIVERY ──────────────────────────────────────────── */}
       {machine.state === BoothState.DELIVERY && (
         <DeliveryScreen
-          sessionId={machine.sessionId ?? 'session'}
-          brandName={config?.branding.brandName}
+          sessionId={machine.sessionId ?? ''}
+          photoUrl={''}
+          digitalPrice={event?.digitalPrice ?? null}
+          brandName={config?.branding.brandName ?? null}
+          onDone={() => machine.startPayment('', '', 0)}
         />
       )}
+
     </div>
   );
 }

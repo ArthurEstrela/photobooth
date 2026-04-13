@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BoothEventResponseDto, ITemplate } from '@packages/shared';
+import { BoothEventResponseDto } from '@packages/shared';
+
+type BoothEvent = BoothEventResponseDto['event'];
+type BoothTemplate = BoothEventResponseDto['templates'][number];
 
 export function useBoothEvent(boothId: string, token: string) {
-  const [event, setEvent] = useState<BoothEventResponseDto['event'] | null>(null);
-  const [templates, setTemplates] = useState<ITemplate[]>([]);
+  const [event, setEvent] = useState<BoothEvent | null>(null);
+  const [templates, setTemplates] = useState<BoothTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

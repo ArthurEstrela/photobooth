@@ -1,131 +1,156 @@
-import React, { useState, useEffect } from 'react';
-import { useSettings, useUpdateSettings } from '../hooks/api/useSettings';
-import { Loader2, Save, Palette } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, Eye } from 'lucide-react';
+import { Card, Button, Input, Modal, Skeleton } from '../components/ui';
+import { useSettings, useUpdateSettings, useUploadLogo } from '../hooks/api/useSettings';
+import { useAuth } from '../context/AuthContext';
+
+function hexToRgb(hex: string): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `${r} ${g} ${b}`;
+}
 
 export const SettingsPage: React.FC = () => {
   const { data: settings, isLoading } = useSettings();
-  const updateMutation = useUpdateSettings();
+  const updateSettings = useUpdateSettings();
+  const uploadLogo = useUploadLogo();
+  const { user } = useAuth();
 
-  const [form, setForm] = useState({
-    brandName: '',
-    primaryColor: '#1d4ed8',
-    logoUrl: '',
-  });
+  const [brandName, setBrandName] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#4f46e5');
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (settings) {
-      setForm({
-        brandName: settings.brandName ?? '',
-        primaryColor: settings.primaryColor ?? '#1d4ed8',
-        logoUrl: settings.logoUrl ?? '',
-      });
+      setBrandName(settings.brandName ?? '');
+      setPrimaryColor(settings.primaryColor ?? '#4f46e5');
     }
   }, [settings]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateMutation.mutate({
-      brandName: form.brandName || null,
-      primaryColor: form.primaryColor || null,
-      logoUrl: form.logoUrl || null,
-    });
+  // Live preview of primary color
+  useEffect(() => {
+    try {
+      const rgb = hexToRgb(primaryColor);
+      document.documentElement.style.setProperty('--color-primary-rgb', rgb);
+    } catch {}
+  }, [primaryColor]);
+
+  const handleSaveBranding = () => {
+    updateSettings.mutate({ brandName, primaryColor });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
-      </div>
-    );
-  }
+  const handleLogoUpload = (file: File) => {
+    uploadLogo.mutate(file);
+  };
+
+  if (isLoading) return <Skeleton className="h-64 w-full rounded-2xl" />;
 
   return (
-    <div>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Configurações</h2>
-        <p className="text-gray-500">White-label e identidade visual da sua marca.</p>
-      </div>
+    <div className="space-y-6 max-w-2xl">
+      <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
 
-      <div className="max-w-2xl bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <Palette size={20} className="text-blue-600" />
+      {/* Identity / White-label */}
+      <Card padding="md" className="space-y-5">
+        <p className="font-semibold text-gray-900">Identidade Visual</p>
+
+        {/* Logo upload */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-2">Logo</label>
+          {settings?.logoUrl && (
+            <img src={settings.logoUrl} alt="logo" className="h-12 object-contain mb-3 rounded-lg" />
+          )}
+          <div
+            className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer hover:border-primary transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload size={20} className="text-gray-400" />
+            <span className="text-sm text-gray-500">Enviar logo</span>
+            <span className="text-xs text-gray-400">PNG ou SVG recomendado</span>
           </div>
-          <h3 className="font-semibold text-gray-900">Identidade Visual</h3>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/svg+xml,image/jpeg"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleLogoUpload(file);
+            }}
+          />
+          {uploadLogo.isPending && <p className="text-xs text-gray-400 mt-1">Enviando...</p>}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nome da Marca
-            </label>
+        <Input
+          label="Nome da marca"
+          value={brandName}
+          onChange={(e) => setBrandName(e.target.value)}
+          placeholder="Ex: PhotoBooth OS"
+        />
+
+        {/* Color picker */}
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-2">Cor primária</label>
+          <div className="flex items-center gap-3">
             <input
-              type="text"
-              value={form.brandName}
-              onChange={(e) => setForm({ ...form, brandName: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
-              placeholder="Ex: Estúdio Silva Fotos"
+              type="color"
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer"
+            />
+            <Input
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              placeholder="#4f46e5"
+              className="font-mono"
+            />
+            <div
+              className="w-10 h-10 rounded-lg border border-gray-200 shrink-0"
+              style={{ backgroundColor: primaryColor }}
+              title="Preview"
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Cor Principal
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="color"
-                value={form.primaryColor}
-                onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                className="w-12 h-10 rounded border border-gray-200 cursor-pointer"
-              />
-              <input
-                type="text"
-                value={form.primaryColor}
-                onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none font-mono text-sm"
-                placeholder="#1d4ed8"
-              />
-            </div>
-          </div>
+        <div className="flex justify-end pt-2">
+          <Button onClick={handleSaveBranding} loading={updateSettings.isPending}>
+            Salvar alterações
+          </Button>
+        </div>
+      </Card>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              URL do Logo (PNG/SVG)
-            </label>
-            <input
-              type="url"
-              value={form.logoUrl}
-              onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
-              placeholder="https://s3.amazonaws.com/seu-logo.png"
-            />
-            {form.logoUrl && (
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg inline-block">
-                <img src={form.logoUrl} alt="Preview" className="h-12 object-contain" />
-              </div>
-            )}
-          </div>
+      {/* Account */}
+      <Card padding="md" className="space-y-4">
+        <p className="font-semibold text-gray-900">Conta</p>
+        <Input label="Email" value={user?.email ?? ''} disabled />
+        <Button variant="secondary" size="sm" onClick={() => setPasswordOpen(true)}>
+          Alterar senha
+        </Button>
+      </Card>
 
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={updateMutation.isPending}
-              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-            >
-              {updateMutation.isPending ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Save size={16} />
-              )}
-              Salvar Configurações
-            </button>
-            {updateMutation.isSuccess && (
-              <p className="mt-3 text-sm text-green-600 font-medium">Configurações salvas!</p>
-            )}
+      {/* Change Password Modal */}
+      <Modal open={passwordOpen} onClose={() => setPasswordOpen(false)} title="Alterar senha">
+        <div className="space-y-4">
+          <Input label="Senha atual" type="password" value={pwForm.current} onChange={(e) => setPwForm(p => ({ ...p, current: e.target.value }))} />
+          <Input label="Nova senha" type="password" value={pwForm.next} onChange={(e) => setPwForm(p => ({ ...p, next: e.target.value }))} />
+          <Input
+            label="Confirmar nova senha"
+            type="password"
+            value={pwForm.confirm}
+            onChange={(e) => setPwForm(p => ({ ...p, confirm: e.target.value }))}
+            error={pwForm.confirm && pwForm.next !== pwForm.confirm ? 'As senhas não coincidem' : undefined}
+          />
+          <div className="flex gap-3 justify-end pt-2">
+            <Button variant="ghost" onClick={() => setPasswordOpen(false)}>Cancelar</Button>
+            <Button disabled={!pwForm.current || !pwForm.next || pwForm.next !== pwForm.confirm}>
+              Alterar
+            </Button>
           </div>
-        </form>
-      </div>
+        </div>
+      </Modal>
     </div>
   );
 };
