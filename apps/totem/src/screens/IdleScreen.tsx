@@ -6,6 +6,7 @@ interface IdleScreenProps {
   backgroundUrl: string | null;
   eventLoading: boolean;
   hasEvent: boolean;
+  hasTemplates: boolean;
   onTap: () => void;
 }
 
@@ -15,6 +16,7 @@ export const IdleScreen: React.FC<IdleScreenProps> = ({
   backgroundUrl,
   eventLoading,
   hasEvent,
+  hasTemplates,
   onTap,
 }) => {
   return (
@@ -51,7 +53,12 @@ export const IdleScreen: React.FC<IdleScreenProps> = ({
         {eventLoading ? (
           <p className="text-2xl text-white/60 font-medium">Carregando evento...</p>
         ) : !hasEvent ? (
-          <p className="text-2xl text-white/40 font-medium">Cabine não configurada</p>
+          <p className="text-2xl text-white/40 font-medium">Cabine não vinculada a um evento</p>
+        ) : !hasTemplates ? (
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-2xl text-amber-400/80 font-medium">Evento sem molduras</p>
+            <p className="text-base text-white/50">Vincule pelo menos uma moldura no Dashboard</p>
+          </div>
         ) : (
           <>
             <button

@@ -76,7 +76,8 @@ export default function App() {
           logoUrl={config?.branding.logoUrl ?? null}
           backgroundUrl={event?.backgroundUrl ?? null}
           eventLoading={eventLoading}
-          hasEvent={!!event && templates.length > 0}
+          hasEvent={!!event}
+          hasTemplates={templates.length > 0}
           onTap={handleIdleTap}
         />
       )}
