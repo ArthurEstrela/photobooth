@@ -12,6 +12,7 @@ import { EventController } from './controllers/event.controller';
 import { BoothsController } from './controllers/booths.controller';
 import { PaymentController } from './controllers/payment.controller';
 import { PhotoController } from './controllers/photo.controller';
+import { HealthController } from './controllers/health.controller';
 import { BoothGateway } from './gateways/booth.gateway';
 import { DashboardGateway } from './gateways/dashboard.gateway';
 import { MercadoPagoAdapter } from './adapters/mercadopago.adapter';
@@ -47,6 +48,7 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
     BoothsController,
     PaymentController,
     PhotoController,
+    HealthController,
   ],
   providers: [
     PrismaService,

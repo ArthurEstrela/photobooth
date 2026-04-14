@@ -9,6 +9,7 @@ vi.mock('../hooks/api/useSettings', () => ({
   }),
   useUpdateSettings: () => ({ mutate: vi.fn(), isPending: false }),
   useUploadLogo: () => ({ mutate: vi.fn(), isPending: false }),
+  useChangePassword: () => ({ mutate: vi.fn(), isPending: false, isError: false, reset: vi.fn() }),
 }));
 
 vi.mock('../context/AuthContext', () => ({
