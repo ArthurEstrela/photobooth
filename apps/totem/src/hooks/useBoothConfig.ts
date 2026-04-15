@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BoothConfigDto } from '@packages/shared';
+import type { DeviceConfig } from './useDeviceConfig';
 
-export function useBoothConfig(boothId: string, token: string) {
+export function useBoothConfig(
+  boothId: string,
+  token: string,
+  setDeviceConfig: (partial: Partial<DeviceConfig>) => void,
+) {
   const [config, setConfig] = useState<BoothConfigDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +28,13 @@ export function useBoothConfig(boothId: string, token: string) {
             res.data.branding.primaryColor,
           );
         }
+        // Sync device config from server — server is the source of truth on boot
+        const { selectedCamera, selectedPrinter, maintenancePin } = res.data.devices;
+        setDeviceConfig({
+          selectedCamera: selectedCamera ?? null,
+          selectedPrinter: selectedPrinter ?? null,
+          maintenancePinHash: maintenancePin ?? null,
+        });
       })
       .catch((err) => {
         if (axios.isCancel(err)) return;
@@ -30,7 +42,7 @@ export function useBoothConfig(boothId: string, token: string) {
       })
       .finally(() => setIsLoading(false));
     return () => controller.abort();
-  }, [boothId, token]);
+  }, [boothId, token, setDeviceConfig]);
 
   return { config, isLoading, error };
 }
