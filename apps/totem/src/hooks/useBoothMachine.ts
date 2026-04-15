@@ -8,9 +8,15 @@ import {
   PixPaymentResponse,
   PaymentApprovedEvent,
   PaymentExpiredEvent,
+  HardwareUpdateEvent,
 } from '@packages/shared';
 
-export function useBoothMachine(boothId: string, token: string, config: BoothConfigDto | null) {
+export function useBoothMachine(
+  boothId: string,
+  token: string,
+  config: BoothConfigDto | null,
+  onForceHardwareUpdate?: (update: HardwareUpdateEvent) => void,
+) {
   const [state, setState] = useState<BoothState>(BoothState.IDLE);
   const [currentPayment, setCurrentPayment] = useState<PixPaymentResponse | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -42,11 +48,15 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
       transition(BoothState.IDLE);
     });
 
+    socket.on('force_hardware_update', (data: HardwareUpdateEvent) => {
+      onForceHardwareUpdate?.(data);
+    });
+
     socketRef.current = socket;
     return () => {
       socket.disconnect();
     };
-  }, [boothId, token, transition]);
+  }, [boothId, token, transition, onForceHardwareUpdate]);
 
   const startPayment = useCallback(
     async (eventId: string, templateId: string | undefined, amount: number) => {
@@ -124,7 +134,7 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
 
   return {
     state,
-    socket: socketRef.current,
+    socketRef,
     currentPayment,
     sessionId,
     stripDataUrl,
