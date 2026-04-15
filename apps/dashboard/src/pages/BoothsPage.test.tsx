@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BoothsPage } from './BoothsPage';
 
 vi.mock('../hooks/api/useBooths', () => ({
@@ -12,6 +13,7 @@ vi.mock('../hooks/api/useBooths', () => ({
   }),
   useCreateBooth: () => ({ mutate: vi.fn(), isPending: false, reset: vi.fn() }),
   useSetBoothEvent: () => ({ mutate: vi.fn(), isPending: false }),
+  useUpdateBoothDevices: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../hooks/api/useEvents', () => ({
@@ -21,9 +23,14 @@ vi.mock('../hooks/api/useEvents', () => ({
   }),
 }));
 
+function renderWithClient(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('BoothsPage', () => {
   it('renders booth cards with online/offline badges', () => {
-    render(<BoothsPage />);
+    renderWithClient(<BoothsPage />);
     expect(screen.getByText('Cabine Salão')).toBeTruthy();
     expect(screen.getByText('Cabine Jardim')).toBeTruthy();
     expect(screen.getByText('Online')).toBeTruthy();
@@ -31,12 +38,12 @@ describe('BoothsPage', () => {
   });
 
   it('shows active event name on booth card', () => {
-    render(<BoothsPage />);
+    renderWithClient(<BoothsPage />);
     expect(screen.getByText('Wedding')).toBeTruthy();
   });
 
   it('opens drawer when "Configurar" is clicked', async () => {
-    render(<BoothsPage />);
+    renderWithClient(<BoothsPage />);
     fireEvent.click(screen.getAllByText('Configurar')[0]);
     await waitFor(() => {
       expect(screen.getByText('Configurar Cabine')).toBeTruthy();
@@ -44,7 +51,7 @@ describe('BoothsPage', () => {
   });
 
   it('shows create form when "Nova Cabine" is clicked', async () => {
-    render(<BoothsPage />);
+    renderWithClient(<BoothsPage />);
     fireEvent.click(screen.getByText('Nova Cabine'));
     await waitFor(() => {
       expect(screen.getByText('Cadastrar Cabine')).toBeTruthy();
