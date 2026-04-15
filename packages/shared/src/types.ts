@@ -112,6 +112,11 @@ export interface BoothConfigDto {
   demoSessionsPerHour: number;
   cameraSound: boolean;
   branding: BoothBranding;
+  devices: {
+    selectedCamera: string | null;
+    selectedPrinter: string | null;
+    maintenancePin: string | null; // SHA-256 hash
+  };
 }
 
 // ─── Domain Interfaces ────────────────────────────────────────────────────────
@@ -282,4 +287,21 @@ export interface IAnalyticsData {
   bestDay: { date: string; revenue: number } | null;
   mostActiveBooth: { name: string; sessions: number } | null;
   topEvents: Array<{ id: string; name: string; revenue: number }>;
+}
+
+export interface DeviceHeartbeatEvent {
+  boothId: string;
+  cameras: string[];
+  printers: string[];
+  selectedCamera: string | null;
+  selectedPrinter: string | null;
+}
+
+export interface DeviceStatusEvent extends DeviceHeartbeatEvent {
+  lastSeen: string; // ISO date string
+}
+
+export interface HardwareUpdateEvent {
+  selectedCamera: string | null;
+  selectedPrinter: string | null;
 }
