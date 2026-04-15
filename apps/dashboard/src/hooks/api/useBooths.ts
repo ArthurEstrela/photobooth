@@ -32,3 +32,28 @@ export const useSetBoothEvent = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booths'] }),
   });
 };
+
+export const useUpdateBoothDevices = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      boothId,
+      selectedCamera,
+      selectedPrinter,
+      maintenancePin,
+    }: {
+      boothId: string;
+      selectedCamera?: string;
+      selectedPrinter?: string;
+      maintenancePin?: string;
+    }) => {
+      const { data } = await api.patch(`/tenant/booths/${boothId}/devices`, {
+        selectedCamera,
+        selectedPrinter,
+        maintenancePin,
+      });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booths'] }),
+  });
+};
