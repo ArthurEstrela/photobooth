@@ -4,17 +4,20 @@ import { useWebcam } from './hooks/useWebcam';
 import { useBoothConfig } from './hooks/useBoothConfig';
 import { useBoothEvent } from './hooks/useBoothEvent';
 import { useBoothMachine } from './hooks/useBoothMachine';
+import { useDeviceConfig } from './hooks/useDeviceConfig';
+import { useDeviceHeartbeat } from './hooks/useDeviceHeartbeat';
 import { CameraEngine } from './components/CameraEngine';
 import { IdleScreen } from './screens/IdleScreen';
 import { FrameSelectionScreen } from './screens/FrameSelectionScreen';
 import { PaymentScreen } from './screens/PaymentScreen';
 import { ProcessingScreen } from './screens/ProcessingScreen';
 import { DeliveryScreen } from './screens/DeliveryScreen';
+import { PinScreen } from './screens/PinScreen';
+import { MaintenanceScreen } from './screens/MaintenanceScreen';
 
 const BOOTH_ID    = import.meta.env.VITE_BOOTH_ID    ?? '';
 const BOOTH_TOKEN = import.meta.env.VITE_BOOTH_TOKEN ?? '';
 
-/** Convert hex color to "r g b" RGB triplet string for CSS custom property */
 function hexToRgbString(hex: string): string {
   const h = hex.replace('#', '');
   const r = parseInt(h.slice(0, 2), 16);
@@ -25,16 +28,20 @@ function hexToRgbString(hex: string): string {
 
 export default function App() {
   const { videoRef } = useWebcam();
-  const { config }   = useBoothConfig(BOOTH_ID, BOOTH_TOKEN);
+  const { deviceConfig, setDeviceConfig } = useDeviceConfig();
+  const { config }   = useBoothConfig(BOOTH_ID, BOOTH_TOKEN, setDeviceConfig);
   const { event, templates, isLoading: eventLoading } = useBoothEvent(BOOTH_ID, BOOTH_TOKEN);
-  const machine = useBoothMachine(BOOTH_ID, BOOTH_TOKEN, config);
+  const machine = useBoothMachine(BOOTH_ID, BOOTH_TOKEN, config, setDeviceConfig);
+
+  useDeviceHeartbeat(machine.socketRef, BOOTH_ID, deviceConfig);
 
   const [isSelectingFrame, setIsSelectingFrame]   = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [showPin, setShowPin]                       = useState(false);
+  const [showMaintenance, setShowMaintenance]       = useState(false);
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
 
-  // Apply white-label CSS variables whenever branding changes
   useEffect(() => {
     const color = config?.branding.primaryColor;
     if (color) {
@@ -46,7 +53,6 @@ export default function App() {
     }
   }, [config?.branding.primaryColor]);
 
-  // Reset frame selection when returning to IDLE
   useEffect(() => {
     if (machine.state === BoothState.IDLE) {
       setIsSelectingFrame(false);
@@ -79,6 +85,7 @@ export default function App() {
           hasEvent={!!event}
           hasTemplates={templates.length > 0}
           onTap={handleIdleTap}
+          onSecretTap={() => setShowPin(true)}
         />
       )}
 
@@ -130,12 +137,28 @@ export default function App() {
           digitalPrice={event?.digitalPrice ?? null}
           brandName={config?.branding.brandName ?? null}
           onDone={() => {
-            // Reset local UI state synchronously so there is no flash of
-            // FrameSelectionScreen when the machine transitions back to IDLE.
             setIsSelectingFrame(false);
             setSelectedTemplateId('');
             machine.resetToIdle();
           }}
+        />
+      )}
+
+      {/* ── MAINTENANCE OVERLAYS (z-50, above everything) ─────── */}
+      {showPin && (
+        <PinScreen
+          pinHash={deviceConfig.maintenancePinHash}
+          onSuccess={() => { setShowPin(false); setShowMaintenance(true); }}
+          onClose={() => setShowPin(false)}
+        />
+      )}
+      {showMaintenance && (
+        <MaintenanceScreen
+          boothId={BOOTH_ID}
+          socketRef={machine.socketRef}
+          deviceConfig={deviceConfig}
+          setDeviceConfig={setDeviceConfig}
+          onClose={() => setShowMaintenance(false)}
         />
       )}
 

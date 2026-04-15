@@ -21,6 +21,7 @@ vi.mock('./hooks/useBoothMachine', () => ({
     state: 'IDLE',
     currentPayment: null,
     sessionId: null,
+    socketRef: { current: null },
     startPayment: vi.fn(),
     completeSession: vi.fn(),
   }),
@@ -28,6 +29,17 @@ vi.mock('./hooks/useBoothMachine', () => ({
 
 vi.mock('./hooks/useWebcam', () => ({
   useWebcam: () => ({ videoRef: { current: null }, error: null, isLoading: false }),
+}));
+
+vi.mock('./hooks/useDeviceConfig', () => ({
+  useDeviceConfig: () => ({
+    deviceConfig: { selectedCamera: null, selectedPrinter: null, maintenancePinHash: null },
+    setDeviceConfig: vi.fn(),
+  }),
+}));
+
+vi.mock('./hooks/useDeviceHeartbeat', () => ({
+  useDeviceHeartbeat: vi.fn(),
 }));
 
 describe('App — IDLE state', () => {
