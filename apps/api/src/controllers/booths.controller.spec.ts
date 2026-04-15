@@ -3,6 +3,46 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { BoothsController } from './booths.controller';
 import { PrismaService } from '../prisma/prisma.service';
 
+const mockBooth = {
+  id: 'booth-1',
+  token: 'tok',
+  tenantId: 'tenant-1',
+  offlineMode: 'BLOCK',
+  offlineCredits: 0,
+  demoSessionsPerHour: 3,
+  cameraSound: true,
+  activeEventId: null,
+  selectedCamera: 'Logitech C920',
+  selectedPrinter: 'DNP RX1',
+  maintenancePin: 'abc123hash',
+  tenant: { logoUrl: null, primaryColor: null, brandName: 'Test' },
+};
+
+const prismaMock = {
+  booth: { findFirst: jest.fn().mockResolvedValue(mockBooth) },
+};
+
+describe('BoothsController.getConfig', () => {
+  let controller: BoothsController;
+
+  beforeEach(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [BoothsController],
+      providers: [{ provide: PrismaService, useValue: prismaMock }],
+    }).compile();
+    controller = module.get(BoothsController);
+  });
+
+  it('includes devices in config response', async () => {
+    const result = await controller.getConfig('booth-1', 'Bearer tok');
+    expect(result.devices).toEqual({
+      selectedCamera: 'Logitech C920',
+      selectedPrinter: 'DNP RX1',
+      maintenancePin: 'abc123hash',
+    });
+  });
+});
+
 const mockPrisma = {
   booth: { findFirst: jest.fn(), findUnique: jest.fn() },
   event: { findUnique: jest.fn() },

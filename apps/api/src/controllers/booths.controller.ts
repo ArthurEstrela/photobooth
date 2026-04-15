@@ -49,6 +49,11 @@ export class BoothsController {
         primaryColor: booth.tenant.primaryColor,
         brandName: booth.tenant.brandName,
       },
+      devices: {
+        selectedCamera: booth.selectedCamera ?? null,
+        selectedPrinter: booth.selectedPrinter ?? null,
+        maintenancePin: booth.maintenancePin ?? null,
+      },
     };
   }
 
