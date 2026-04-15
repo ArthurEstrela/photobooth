@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -32,6 +33,7 @@ import {
   IPaymentRecord,
   ITenantSettings,
   UpdateTenantSettingsDto,
+  HardwareUpdateEvent,
 } from '@packages/shared';
 
 interface AuthReq {
@@ -306,6 +308,35 @@ export class TenantController {
       where: { id: boothId },
       data: { activeEventId: body.eventId },
     });
+  }
+
+  @Patch('booths/:id/devices')
+  async updateBoothDevices(
+    @Param('id') boothId: string,
+    @Body() body: { selectedCamera?: string; selectedPrinter?: string; maintenancePin?: string },
+    @Request() req: AuthReq,
+  ) {
+    const booth = await this.prisma.booth.findFirst({
+      where: { id: boothId, tenantId: req.user.tenantId },
+    });
+    if (!booth) throw new NotFoundException('Booth not found');
+
+    await this.prisma.booth.update({
+      where: { id: boothId },
+      data: {
+        ...(body.selectedCamera !== undefined && { selectedCamera: body.selectedCamera }),
+        ...(body.selectedPrinter !== undefined && { selectedPrinter: body.selectedPrinter }),
+        ...(body.maintenancePin !== undefined && { maintenancePin: body.maintenancePin }),
+      },
+    });
+
+    const payload: HardwareUpdateEvent = {
+      selectedCamera: body.selectedCamera ?? booth.selectedCamera ?? null,
+      selectedPrinter: body.selectedPrinter ?? booth.selectedPrinter ?? null,
+    };
+    this.boothGateway.sendForceHardwareUpdate(boothId, payload);
+
+    return { ok: true };
   }
 
   @Post('settings/logo')

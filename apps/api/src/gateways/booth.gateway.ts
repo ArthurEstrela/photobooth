@@ -12,7 +12,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BoothStateUpdate } from '@packages/shared';
+import { BoothStateUpdate, HardwareUpdateEvent } from '@packages/shared';
 import { DashboardGateway } from './dashboard.gateway';
 
 interface BoothEntry {
@@ -110,6 +110,14 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const entry = this.connectedBooths.get(boothId);
     if (entry) {
       this.server.to(entry.socketId).emit('payment_expired');
+    }
+  }
+
+  sendForceHardwareUpdate(boothId: string, payload: HardwareUpdateEvent) {
+    const entry = this.connectedBooths.get(boothId);
+    if (entry) {
+      this.server.to(entry.socketId).emit('force_hardware_update', payload);
+      this.logger.log(`force_hardware_update sent to booth ${boothId}`);
     }
   }
 }
