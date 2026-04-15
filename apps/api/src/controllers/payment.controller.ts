@@ -82,9 +82,9 @@ export class PaymentController {
   ): void {
     const secret = process.env.MP_WEBHOOK_SECRET;
 
-    // If no secret configured, skip verification (dev/test mode)
-    if (!secret) {
-      this.logger.warn('MP_WEBHOOK_SECRET not set — skipping signature verification');
+    // Skip verification in non-production or when secret not configured
+    if (!secret || process.env.NODE_ENV !== 'production') {
+      if (!secret) this.logger.warn('MP_WEBHOOK_SECRET not set — skipping signature verification');
       return;
     }
 
