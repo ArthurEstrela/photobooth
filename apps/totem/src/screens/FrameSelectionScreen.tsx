@@ -5,6 +5,8 @@ interface Template {
   id: string;
   name: string;
   overlayUrl: string;
+  photoCount: number | null;
+  layout: string | null;
   order: number;
 }
 
@@ -66,6 +68,16 @@ export const FrameSelectionScreen: React.FC<FrameSelectionScreenProps> = ({
                     alt={t.name}
                     className="absolute inset-0 w-full h-full object-contain"
                   />
+                  {/* Photo count + layout badge */}
+                  {t.photoCount && (
+                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg leading-tight">
+                      {t.photoCount === 1 && '1 foto'}
+                      {t.photoCount === 2 && '2 fotos'}
+                      {t.photoCount === 4 && t.layout === 'strip' && '4 fotos · tira'}
+                      {t.photoCount === 4 && t.layout !== 'strip' && '4 fotos · grade'}
+                    </div>
+                  )}
+
                   {isSelected && (
                     <div className="absolute top-2 right-2 text-primary">
                       <CheckCircle2 size={28} fill="white" />

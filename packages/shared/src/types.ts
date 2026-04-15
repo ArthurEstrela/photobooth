@@ -159,6 +159,8 @@ export interface ITemplate {
   id: string;
   name: string;
   overlayUrl: string;
+  photoCount: number | null; // 1, 2, or 4 — null means any photo count
+  layout: string | null;     // 'grid' (2×2) | 'strip' (1×4) — only for photoCount=4
   tenantId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -218,7 +220,7 @@ export interface BoothEventResponseDto {
     backgroundUrl: string | null;
     maxTemplates: number;
   };
-  templates: Array<{ id: string; name: string; overlayUrl: string; order: number }>;
+  templates: Array<{ id: string; name: string; overlayUrl: string; photoCount: number | null; layout: string | null; order: number }>;
 }
 
 // ─── Dashboard DTOs & Models ─────────────────────────────────────────────────

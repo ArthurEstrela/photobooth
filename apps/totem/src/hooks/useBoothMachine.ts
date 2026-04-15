@@ -79,16 +79,33 @@ export function useBoothMachine(boothId: string, token: string, config: BoothCon
   const completeSession = useCallback(
     async (dataUrl: string) => {
       setStripDataUrl(dataUrl);
+
+      // Upload photo strip to S3 (non-fatal — delivery proceeds even on failure)
+      if (sessionId && !sessionId.startsWith('offline-')) {
+        const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+        try {
+          await axios.post(
+            `${apiUrl}/photos/sync`,
+            { sessionId, photoBase64: dataUrl },
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+        } catch {
+          // Proceed to delivery even if S3 upload fails
+        }
+      }
+
+      // Electron IPC: save locally + trigger printer
       const totemAPI = (window as any).totemAPI;
       if (sessionId && totemAPI?.saveOfflinePhoto && totemAPI?.printPhoto) {
         totemAPI.saveOfflinePhoto({ sessionId, photoBase64: dataUrl });
         totemAPI.printPhoto();
       }
+
       transition(BoothState.DELIVERY);
       // NOTE: auto-reset is intentionally removed here.
       // DeliveryScreen drives the flow via onDone → machine.reset().
     },
-    [sessionId, transition],
+    [sessionId, token, transition],
   );
 
   // Reset stripDataUrl when returning to IDLE so stale data is never reused

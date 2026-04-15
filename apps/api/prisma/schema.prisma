@@ -75,6 +75,8 @@ model Template {
   id             String          @id @default(uuid())
   name           String
   overlayUrl     String
+  photoCount     Int?            // 1, 2, or 4 — null means compatible with any count
+  layout         String?         // 'grid' (2x2) | 'strip' (1x4) — only meaningful for photoCount=4
   tenantId       String
   tenant         Tenant          @relation(fields: [tenantId], references: [id])
   createdAt      DateTime        @default(now())

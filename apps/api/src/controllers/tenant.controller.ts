@@ -234,11 +234,20 @@ export class TenantController {
   async uploadTemplate(
     @UploadedFile() file: Express.Multer.File,
     @Body('name') name: string,
+    @Body('photoCount') photoCountRaw: string | undefined,
+    @Body('layout') layout: string | undefined,
     @Request() req: AuthReq,
   ): Promise<ITemplate> {
+    const photoCount = photoCountRaw ? parseInt(photoCountRaw, 10) : null;
     const url = await this.s3.uploadFile('templates', file.buffer, file.mimetype);
     return this.prisma.template.create({
-      data: { name, overlayUrl: url, tenantId: req.user.tenantId },
+      data: {
+        name,
+        overlayUrl: url,
+        photoCount,
+        layout: layout ?? null,
+        tenantId: req.user.tenantId,
+      },
     }) as any;
   }
 

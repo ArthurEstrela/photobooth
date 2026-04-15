@@ -9,11 +9,51 @@ dotenv.config();
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import helmet from 'helmet';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+
+// ── Validate required environment variables before the app starts ──────────────
+function validateEnv() {
+  const logger = new Logger('Bootstrap');
+  const required: string[] = ['JWT_SECRET', 'DATABASE_URL'];
+
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    logger.error(`Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+
+  if (!process.env.MP_ACCESS_TOKEN) {
+    logger.warn('MP_ACCESS_TOKEN not set — payment creation will fail');
+  }
+
+  if (!process.env.MP_WEBHOOK_SECRET) {
+    logger.warn('MP_WEBHOOK_SECRET not set — webhook signature verification is DISABLED');
+  }
+
+  if (!process.env.AWS_S3_BUCKET) {
+    logger.warn('AWS_S3_BUCKET not set — photo uploads will fail');
+  }
+}
 
 async function bootstrap() {
+  validateEnv();
+
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
+  // ── Security headers ─────────────────────────────────────────────────────────
+  app.use(
+    helmet({
+      // Allow inline styles/scripts needed by Vite dev & Socket.IO
+      contentSecurityPolicy: process.env.NODE_ENV === 'production',
+    }),
+  );
+
+  // ── Global exception filter (no stack-trace leaks in production) ─────────────
+  app.useGlobalFilters(new AllExceptionsFilter());
+
+  // ── Input validation ─────────────────────────────────────────────────────────
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // ── CORS ─────────────────────────────────────────────────────────────────────
@@ -53,4 +93,5 @@ async function bootstrap() {
 
   logger.log(`API running on port ${port} [${isProduction ? 'production' : 'development'}]`);
 }
+
 bootstrap();

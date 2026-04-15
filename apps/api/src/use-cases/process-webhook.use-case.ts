@@ -40,10 +40,20 @@ export class ProcessWebhookUseCase {
       data: { status: PaymentStatus.APPROVED },
     });
 
+    // Create PhotoSession so the totem can reference it for S3 sync and digital upsell
+    const photoSession = await this.prisma.photoSession.create({
+      data: {
+        paymentId: payment.id,
+        boothId: payment.boothId,
+        eventId: payment.eventId,
+        photoUrls: [],
+      },
+    });
+
     const eventPayload = {
       paymentId: payment.id,
-      transactionId: externalId,
-      amount: Number(payment.amount),
+      boothId: payment.boothId,
+      sessionId: photoSession.id,
     };
 
     // Notify totem
@@ -59,6 +69,6 @@ export class ProcessWebhookUseCase {
       this.logger.warn(`Booth not found for payment ${payment.id} — dashboard not notified`);
     }
 
-    this.logger.log(`Payment approved and notified for booth: ${payment.boothId}`);
+    this.logger.log(`Payment approved, PhotoSession ${photoSession.id} created for booth: ${payment.boothId}`);
   }
 }

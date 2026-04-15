@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Trash2, GripVertical, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical, CheckCircle2, Download } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -55,6 +55,8 @@ export const FramesPage: React.FC = () => {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadName, setUploadName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPhotoCount, setUploadPhotoCount] = useState<number | null>(null);
+  const [uploadLayout, setUploadLayout] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sensors = useSensors(
@@ -99,12 +101,14 @@ export const FramesPage: React.FC = () => {
   const handleUpload = () => {
     if (!uploadFile || !uploadName.trim()) return;
     uploadTemplate.mutate(
-      { name: uploadName.trim(), file: uploadFile },
+      { name: uploadName.trim(), file: uploadFile, photoCount: uploadPhotoCount, layout: uploadLayout },
       {
         onSuccess: () => {
           setUploadOpen(false);
           setUploadName('');
           setUploadFile(null);
+          setUploadPhotoCount(null);
+          setUploadLayout(null);
         },
       },
     );
@@ -149,6 +153,11 @@ export const FramesPage: React.FC = () => {
                       onClick={() => selectedEventId && addToEvent(t.id)}
                     >
                       <img src={t.overlayUrl} alt={t.name} className="w-full h-full object-contain" />
+                      {t.photoCount && (
+                        <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded leading-tight">
+                          {t.photoCount === 4 && t.layout === 'strip' ? '4× tira' : t.photoCount === 4 ? '4× grade' : `${t.photoCount}×`}
+                        </div>
+                      )}
                       {inEvent && (
                         <div className="absolute top-1 right-1 text-primary">
                           <CheckCircle2 size={16} fill="white" />
@@ -214,6 +223,59 @@ export const FramesPage: React.FC = () => {
       <Modal open={uploadOpen} onClose={() => setUploadOpen(false)} title="Adicionar Moldura">
         <div className="space-y-4">
           <Input label="Nome da moldura" value={uploadName} onChange={(e) => setUploadName(e.target.value)} />
+
+          <Select
+            label="Número de fotos"
+            value={uploadPhotoCount === null ? '' : String(uploadPhotoCount)}
+            onChange={(e) => {
+              const val = e.target.value ? Number(e.target.value) : null;
+              setUploadPhotoCount(val);
+              if (val !== 4) setUploadLayout(null);
+            }}
+            options={[
+              { value: '', label: 'Qualquer (compatível com todos)' },
+              { value: '1', label: '1 foto' },
+              { value: '2', label: '2 fotos' },
+              { value: '4', label: '4 fotos' },
+            ]}
+          />
+
+          {uploadPhotoCount === 4 && (
+            <Select
+              label="Layout das 4 fotos"
+              value={uploadLayout ?? 'grid'}
+              onChange={(e) => setUploadLayout(e.target.value)}
+              options={[
+                { value: 'grid', label: 'Grade 2×2 (lado a lado)' },
+                { value: 'strip', label: 'Tira 1×4 (empilhadas — clássico)' },
+              ]}
+            />
+          )}
+
+          {/* Guide download links */}
+          {uploadPhotoCount !== null && (
+            <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-indigo-700">Baixar molde para design</p>
+              <p className="text-xs text-indigo-500">Abra no Figma ou Photoshop e crie a decoração nas bordas.</p>
+              <a
+                href={
+                  uploadPhotoCount === 1 ? '/templates/guia-1-foto.svg' :
+                  uploadPhotoCount === 2 ? '/templates/guia-2-fotos.svg' :
+                  uploadLayout === 'strip' ? '/templates/guia-4-fotos-tira.svg' :
+                  '/templates/guia-4-fotos-grade.svg'
+                }
+                download
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              >
+                <Download size={12} />
+                {uploadPhotoCount === 1 && 'guia-1-foto.svg (1280×720)'}
+                {uploadPhotoCount === 2 && 'guia-2-fotos.svg (1280×1440)'}
+                {uploadPhotoCount === 4 && uploadLayout === 'strip' && 'guia-4-fotos-tira.svg (1280×2880)'}
+                {uploadPhotoCount === 4 && uploadLayout !== 'strip' && 'guia-4-fotos-grade.svg (2560×1440)'}
+              </a>
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Arquivo PNG</label>
             <input

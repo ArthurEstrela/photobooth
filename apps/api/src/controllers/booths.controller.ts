@@ -90,12 +90,17 @@ export class BoothsController {
         backgroundUrl: event.backgroundUrl,
         maxTemplates: event.maxTemplates,
       },
-      templates: event.eventTemplates.map((et) => ({
-        id: et.template.id,
-        name: et.template.name,
-        overlayUrl: et.template.overlayUrl,
-        order: et.order,
-      })),
+      // Only show templates that match the event's photo count (or have no count restriction)
+      templates: event.eventTemplates
+        .filter((et) => !et.template.photoCount || et.template.photoCount === event.photoCount)
+        .map((et) => ({
+          id: et.template.id,
+          name: et.template.name,
+          overlayUrl: et.template.overlayUrl,
+          photoCount: et.template.photoCount,
+          layout: et.template.layout,
+          order: et.order,
+        })),
     };
   }
 }

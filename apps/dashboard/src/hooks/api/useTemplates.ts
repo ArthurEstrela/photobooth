@@ -14,10 +14,12 @@ export const useTemplates = () =>
 export const useUploadTemplate = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, file }: { name: string; file: File }) => {
+    mutationFn: async ({ name, file, photoCount, layout }: { name: string; file: File; photoCount?: number | null; layout?: string | null }) => {
       const form = new FormData();
       form.append('name', name);
       form.append('file', file);
+      if (photoCount) form.append('photoCount', String(photoCount));
+      if (layout) form.append('layout', layout);
       const { data } = await api.post('/tenant/templates', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

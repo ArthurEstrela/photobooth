@@ -109,7 +109,8 @@ export default function App() {
         <CameraEngine
           overlayUrl={selectedTemplate?.overlayUrl}
           sessionId={machine.sessionId ?? 'session'}
-          photoCount={(event?.photoCount ?? 1) as 1 | 2 | 4}
+          photoCount={(selectedTemplate?.photoCount ?? event?.photoCount ?? 1) as 1 | 2 | 4}
+          layout={selectedTemplate?.layout}
           cameraSound={config?.cameraSound ?? true}
           onProcessing={() => machine.setProcessing()}
           onStripReady={(strip) => machine.completeSession(strip)}
@@ -128,7 +129,13 @@ export default function App() {
           photoUrl={machine.stripDataUrl}
           digitalPrice={event?.digitalPrice ?? null}
           brandName={config?.branding.brandName ?? null}
-          onDone={() => machine.resetToIdle()}
+          onDone={() => {
+            // Reset local UI state synchronously so there is no flash of
+            // FrameSelectionScreen when the machine transitions back to IDLE.
+            setIsSelectingFrame(false);
+            setSelectedTemplateId('');
+            machine.resetToIdle();
+          }}
         />
       )}
 

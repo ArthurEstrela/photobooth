@@ -6,6 +6,8 @@ interface Props {
   overlayUrl?: string;
   sessionId: string;
   photoCount: 1 | 2 | 4;
+  /** Layout for 4-photo templates: 'grid' (2×2) or 'strip' (1×4 vertical). Default: 'grid'. */
+  layout?: string | null;
   cameraSound: boolean;
   onProcessing?: () => void;
   onStripReady: (stripDataUrl: string) => void;
@@ -15,6 +17,7 @@ export const CameraEngine: React.FC<Props> = ({
   overlayUrl,
   sessionId: _sessionId,
   photoCount,
+  layout,
   cameraSound,
   onProcessing,
   onStripReady,
@@ -27,9 +30,32 @@ export const CameraEngine: React.FC<Props> = ({
 
   const playShutter = useCallback(() => {
     if (!cameraSound) return;
-    try {
-      new Audio('/shutter.mp3').play().catch(() => {});
-    } catch {}
+    // Try to play an audio file first; fall back to a synthesised click
+    const audio = new Audio('/shutter.mp3');
+    audio.play().catch(() => {
+      // Synthesise a short white-noise burst that sounds like a shutter click
+      try {
+        const AudioCtx = window.AudioContext ?? (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx() as AudioContext;
+        const bufferSize = Math.floor(ctx.sampleRate * 0.08); // 80 ms
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.015));
+        }
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.6;
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start();
+        source.onended = () => ctx.close();
+      } catch {
+        // No audio at all — silently ignore
+      }
+    });
   }, [cameraSound]);
 
   const captureFrame = useCallback((): string | null => {
@@ -57,49 +83,49 @@ export const CameraEngine: React.FC<Props> = ({
         const stripCanvas = document.createElement('canvas');
         const ctx = stripCanvas.getContext('2d')!;
 
+        const applyOverlay = () => {
+          if (
+            overlayUrl &&
+            overlayImageRef.current &&
+            overlayImageRef.current.complete &&
+            overlayImageRef.current.naturalWidth > 0
+          ) {
+            ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
+          }
+          resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
+        };
+
         if (photoCount === 1) {
           const img = new Image();
           img.onload = () => {
             stripCanvas.width = img.width;
             stripCanvas.height = img.height;
             ctx.drawImage(img, 0, 0);
-            if (
-              overlayUrl && 
-              overlayImageRef.current && 
-              overlayImageRef.current.complete && 
-              overlayImageRef.current.naturalWidth > 0
-            ) {
-              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
-            }
-            resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
+            applyOverlay();
           };
           img.src = photos[0];
+
         } else if (photoCount === 2) {
-          const img1 = new Image();
-          const img2 = new Image();
+          // 1×2 vertical strip
+          const imgs = [new Image(), new Image()];
           let loaded = 0;
           const onLoad = () => {
-            loaded++;
-            if (loaded < 2) return;
-            stripCanvas.width = img1.width;
-            stripCanvas.height = img1.height * 2;
-            ctx.drawImage(img1, 0, 0);
-            ctx.drawImage(img2, 0, img1.height);
-            if (
-              overlayUrl && 
-              overlayImageRef.current && 
-              overlayImageRef.current.complete && 
-              overlayImageRef.current.naturalWidth > 0
-            ) {
-              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
-            }
-            resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
+            if (++loaded < 2) return;
+            const w = imgs[0].width;
+            const h = imgs[0].height;
+            stripCanvas.width = w;
+            stripCanvas.height = h * 2;
+            ctx.drawImage(imgs[0], 0, 0, w, h);
+            ctx.drawImage(imgs[1], 0, h, w, h);
+            applyOverlay();
           };
-          img1.onload = onLoad;
-          img2.onload = onLoad;
-          img1.src = photos[0];
-          img2.src = photos[1] ?? photos[0];
+          imgs[0].onload = onLoad;
+          imgs[1].onload = onLoad;
+          imgs[0].src = photos[0];
+          imgs[1].src = photos[1] ?? photos[0];
+
         } else {
+          // photoCount === 4
           const imgs = photos.map((src) => {
             const img = new Image();
             img.src = src;
@@ -107,31 +133,31 @@ export const CameraEngine: React.FC<Props> = ({
           });
           let loaded = 0;
           const onLoad = () => {
-            loaded++;
-            if (loaded < 4) return;
+            if (++loaded < 4) return;
             const w = imgs[0].width;
             const h = imgs[0].height;
-            stripCanvas.width = w * 2;
-            stripCanvas.height = h * 2;
-            ctx.drawImage(imgs[0], 0, 0, w, h);
-            ctx.drawImage(imgs[1] ?? imgs[0], w, 0, w, h);
-            ctx.drawImage(imgs[2] ?? imgs[0], 0, h, w, h);
-            ctx.drawImage(imgs[3] ?? imgs[0], w, h, w, h);
-            if (
-              overlayUrl && 
-              overlayImageRef.current && 
-              overlayImageRef.current.complete && 
-              overlayImageRef.current.naturalWidth > 0
-            ) {
-              ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
+
+            if (layout === 'strip') {
+              // 1×4 vertical tira — classic photobooth strip
+              stripCanvas.width = w;
+              stripCanvas.height = h * 4;
+              imgs.forEach((img, i) => ctx.drawImage(img, 0, h * i, w, h));
+            } else {
+              // 2×2 grid (default)
+              stripCanvas.width = w * 2;
+              stripCanvas.height = h * 2;
+              ctx.drawImage(imgs[0], 0, 0, w, h);
+              ctx.drawImage(imgs[1] ?? imgs[0], w, 0, w, h);
+              ctx.drawImage(imgs[2] ?? imgs[0], 0, h, w, h);
+              ctx.drawImage(imgs[3] ?? imgs[0], w, h, w, h);
             }
-            resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
+            applyOverlay();
           };
           imgs.forEach((img) => (img.onload = onLoad));
         }
       });
     },
-    [photoCount],
+    [photoCount, layout, overlayUrl],
   );
 
   const handleCountdownComplete = useCallback(() => {

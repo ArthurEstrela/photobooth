@@ -96,12 +96,28 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = ({
   // ── PHASE: printing ────────────────────────────────────────────────────
   if (phase === 'printing') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 gap-8">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="p-6 bg-white/5 rounded-3xl">
-            <Printer size={64} className="text-white" />
+      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 gap-8 px-8">
+        {/* Photo preview — main content while printing */}
+        {photoUrl && (
+          <div
+            className="rounded-2xl overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/10"
+            style={{ maxHeight: '65vh', maxWidth: '80vw' }}
+          >
+            <img
+              src={photoUrl}
+              alt="Sua foto"
+              className="block max-h-[65vh] max-w-[80vw] object-contain"
+            />
           </div>
-          <p className="text-white text-2xl font-semibold">Imprimindo sua foto...</p>
+        )}
+
+        {/* Printing status */}
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          <span className="text-white/70 text-xl font-medium flex items-center gap-2">
+            <Printer size={20} />
+            Imprimindo sua foto...
+          </span>
         </div>
       </div>
     );

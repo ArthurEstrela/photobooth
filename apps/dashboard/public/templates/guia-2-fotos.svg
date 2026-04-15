@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1440" width="640" height="720">
+  <title>Guia de Moldura — 2 Fotos (1280×1440)</title>
+
+  <rect width="1280" height="1440" fill="#1a1a2e"/>
+
+  <!-- Checkerboard pattern -->
+  <pattern id="checker" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+    <rect width="10" height="10" fill="#3a3a55"/>
+    <rect x="10" y="10" width="10" height="10" fill="#3a3a55"/>
+    <rect x="10" y="0" width="10" height="10" fill="#2d2d44"/>
+    <rect x="0" y="10" width="10" height="10" fill="#2d2d44"/>
+  </pattern>
+
+  <!-- Photo slot 1 (top) -->
+  <rect x="40" y="40" width="1200" height="660" fill="url(#checker)" rx="8"/>
+  <rect x="40" y="40" width="1200" height="660" fill="none" stroke="#6c6cff" stroke-width="2" stroke-dasharray="12 6" rx="8"/>
+  <text x="640" y="355" text-anchor="middle" fill="#9090cc" font-family="Arial, sans-serif" font-size="28" font-weight="bold">FOTO 1</text>
+  <text x="640" y="395" text-anchor="middle" fill="#6060aa" font-family="Arial, sans-serif" font-size="18">1200 × 660 px</text>
+
+  <!-- Gap / decoração entre fotos -->
+  <rect x="0" y="700" width="1280" height="40" fill="#1a1a2e"/>
+  <text x="640" y="726" text-anchor="middle" fill="#5050aa" font-family="Arial, sans-serif" font-size="14">← espaço para decoração →</text>
+
+  <!-- Photo slot 2 (bottom) -->
+  <rect x="40" y="740" width="1200" height="660" fill="url(#checker)" rx="8"/>
+  <rect x="40" y="740" width="1200" height="660" fill="none" stroke="#6c6cff" stroke-width="2" stroke-dasharray="12 6" rx="8"/>
+  <text x="640" y="1055" text-anchor="middle" fill="#9090cc" font-family="Arial, sans-serif" font-size="28" font-weight="bold">FOTO 2</text>
+  <text x="640" y="1095" text-anchor="middle" fill="#6060aa" font-family="Arial, sans-serif" font-size="18">1200 × 660 px</text>
+
+  <!-- Corner marks -->
+  <g stroke="#ff6b6b" stroke-width="1.5" fill="none">
+    <path d="M0,0 L30,0 M0,0 L0,30"/>
+    <path d="M1280,0 L1250,0 M1280,0 L1280,30"/>
+    <path d="M0,1440 L30,1440 M0,1440 L0,1410"/>
+    <path d="M1280,1440 L1250,1440 M1280,1440 L1280,1410"/>
+  </g>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="310" height="36" fill="#6c6cff" opacity="0.9"/>
+  <text x="10" y="24" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Photobooth — Moldura 2 Fotos</text>
+  <rect x="1000" y="0" width="280" height="36" fill="#2d2d44" opacity="0.9"/>
+  <text x="1140" y="24" text-anchor="middle" fill="#9090cc" font-family="Arial, sans-serif" font-size="13">1280 × 1440 px · 8:9</text>
+</svg>

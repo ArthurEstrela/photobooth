@@ -52,5 +52,6 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 # Expose the API port
 EXPOSE 3000
 
-# Start the application
-CMD ["node", "apps/api/dist/main"]
+# Run migrations then start the application.
+# Using shell form so environment variables are expanded at runtime.
+CMD npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main

@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { BullModule } from '@nestjs/bull';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaService } from './prisma/prisma.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
@@ -29,6 +31,8 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
     }),
+    // Global rate-limit: 60 req / 60s per IP. Payment routes use stricter @Throttle decorator.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET,
@@ -51,6 +55,8 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
     HealthController,
   ],
   providers: [
+    // Apply ThrottlerGuard globally; individual routes can override with @Throttle()
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     PrismaService,
     AuthService,
     JwtStrategy,

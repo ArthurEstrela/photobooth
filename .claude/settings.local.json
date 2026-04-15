@@ -1,15 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls apps/dashboard/tailwind.config.*)",
-      "Bash(ls apps/dashboard/src/components/ui/*.test.tsx)",
-      "Bash(npx vitest:*)",
-      "Bash(node -e ':*)",
-      "Bash(npx turbo:*)",
-      "Bash(ls apps/api/.env*)",
-      "Bash(ls apps/dashboard/.env*)",
-      "Bash(ls apps/totem/.env*)",
-      "Bash(ls .env*)"
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(turbo:*)",
+      "Bash(vitest:*)",
+      "Bash(docker --version)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(grep -n 'overlayUrl\\\\|tenantId\\\\|TemplateScalar\\\\|$TemplatePayload' c:/Users/arthu/OneDrive/Documentos/photobooth/node_modules/.prisma/client/index.d.ts)",
+      "Bash(grep -v \"result\\\\|args\\\\|payload: Prisma\\\\.\\\\$\")",
+      "Bash(grep -n '^\\\\s*photoCount\\\\|$TemplatePayload\\\\|TemplateScalarFieldEnum\\\\|scalars: {' c:/Users/arthu/OneDrive/Documentos/photobooth/node_modules/.prisma/client/index.d.ts)",
+      "Bash(grep -n 'export type $TemplatePayload' c:/Users/arthu/OneDrive/Documentos/photobooth/node_modules/.prisma/client/index.d.ts)",
+      "Bash(npm install:*)"
     ]
   }
 }

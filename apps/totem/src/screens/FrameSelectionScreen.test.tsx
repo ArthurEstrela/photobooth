@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { FrameSelectionScreen } from './FrameSelectionScreen';
 
 const TEMPLATES = [
-  { id: 't-1', name: 'Floral', overlayUrl: 'https://s3/t1.png', order: 0 },
-  { id: 't-2', name: 'Gold',   overlayUrl: 'https://s3/t2.png', order: 1 },
+  { id: 't-1', name: 'Floral', overlayUrl: 'https://s3/t1.png', photoCount: 1, order: 0 },
+  { id: 't-2', name: 'Gold',   overlayUrl: 'https://s3/t2.png', photoCount: 4, order: 1 },
 ];
 
 describe('FrameSelectionScreen', () => {

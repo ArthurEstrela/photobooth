@@ -5,9 +5,37 @@ interface Props {
   onComplete: () => void;
 }
 
+/** Play a short beep using the Web Audio API. Higher pitch on the last second. */
+function playBeep(count: number) {
+  try {
+    const AudioCtx = window.AudioContext ?? (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx() as AudioContext;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    // Last second gets a higher-pitched "ready" tone
+    osc.frequency.value = count === 1 ? 1047 : 698; // C6 vs F5
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.18);
+    osc.onended = () => ctx.close();
+  } catch {
+    // Web Audio not available — no sound
+  }
+}
+
 export const CountdownOverlay: React.FC<Props> = ({ startCount, onComplete }) => {
   const [count, setCount] = useState(startCount);
   const [isFlashing, setIsFlashing] = useState(false);
+
+  // Beep on every number change (including the initial render)
+  useEffect(() => {
+    if (count > 0) playBeep(count);
+  }, [count]);
 
   useEffect(() => {
     if (count <= 0) {
