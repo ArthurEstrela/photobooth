@@ -12,7 +12,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BoothStateUpdate, HardwareUpdateEvent } from '@packages/shared';
+import { BoothStateUpdate, HardwareUpdateEvent, DeviceHeartbeatEvent, DeviceStatusEvent } from '@packages/shared';
 import { DashboardGateway } from './dashboard.gateway';
 
 interface BoothEntry {
@@ -27,6 +27,7 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(BoothGateway.name);
   private connectedBooths = new Map<string, BoothEntry>(); // boothId → { socketId, tenantId }
+  private boothDevices = new Map<string, DeviceStatusEvent>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -61,6 +62,24 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
       online: true,
     });
     this.logger.log(`Booth connected: ${boothId}`);
+
+    // Sync: se o banco tiver config diferente do último heartbeat, força update
+    const dbBooth = await this.prisma.booth.findUnique({
+      where: { id: boothId },
+      select: { selectedCamera: true, selectedPrinter: true },
+    });
+    const lastKnown = this.boothDevices.get(boothId);
+    if (
+      dbBooth &&
+      lastKnown &&
+      (dbBooth.selectedCamera !== lastKnown.selectedCamera ||
+        dbBooth.selectedPrinter !== lastKnown.selectedPrinter)
+    ) {
+      this.sendForceHardwareUpdate(boothId, {
+        selectedCamera: dbBooth.selectedCamera ?? null,
+        selectedPrinter: dbBooth.selectedPrinter ?? null,
+      });
+    }
   }
 
   handleDisconnect(client: Socket) {
@@ -85,6 +104,50 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() _client: Socket,
   ) {
     this.logger.log(`Booth ${data.boothId} → state: ${data.state}`);
+  }
+
+  @SubscribeMessage('device_heartbeat')
+  async handleDeviceHeartbeat(
+    @MessageBody() data: DeviceHeartbeatEvent,
+    @ConnectedSocket() _client: Socket,
+  ) {
+    const entry = this.connectedBooths.get(data.boothId);
+    if (!entry) return;
+
+    const status: DeviceStatusEvent = { ...data, lastSeen: new Date().toISOString() };
+    this.boothDevices.set(data.boothId, status);
+    this.dashboardGateway.broadcastToTenant(entry.tenantId, 'device_status', status);
+  }
+
+  @SubscribeMessage('hardware_updated')
+  async handleHardwareUpdated(
+    @MessageBody() data: { boothId: string; selectedCamera: string | null; selectedPrinter: string | null },
+    @ConnectedSocket() _client: Socket,
+  ) {
+    const entry = this.connectedBooths.get(data.boothId);
+    if (!entry) return;
+
+    await this.prisma.booth.update({
+      where: { id: data.boothId },
+      data: {
+        selectedCamera: data.selectedCamera,
+        selectedPrinter: data.selectedPrinter,
+      },
+    });
+
+    const existing = this.boothDevices.get(data.boothId);
+    if (existing) {
+      const updated: DeviceStatusEvent = {
+        ...existing,
+        selectedCamera: data.selectedCamera,
+        selectedPrinter: data.selectedPrinter,
+        lastSeen: new Date().toISOString(),
+      };
+      this.boothDevices.set(data.boothId, updated);
+      this.dashboardGateway.broadcastToTenant(entry.tenantId, 'device_status', updated);
+    }
+
+    this.logger.log(`Booth ${data.boothId} updated hardware locally`);
   }
 
   isBoothOnline(boothId: string): boolean {
