@@ -35,50 +35,47 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(client: Socket) {
-    const boothId = client.handshake.query['boothId'] as string;
-    const authHeader = client.handshake.headers['authorization'];
-    const token = authHeader?.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : undefined;
+    try {
+      const boothId = client.handshake.query['boothId'] as string;
+      const authHeader = client.handshake.headers['authorization'];
+      const token = authHeader?.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : undefined;
 
-    if (!boothId || !token) {
-      client.disconnect();
-      return;
-    }
+      if (!boothId || !token) {
+        client.disconnect();
+        return;
+      }
 
-    const booth = await this.prisma.booth.findFirst({
-      where: { id: boothId, token },
-    });
-
-    if (!booth) {
-      this.logger.warn(`Connection rejected for booth ${boothId} — invalid token`);
-      client.disconnect();
-      return;
-    }
-
-    this.connectedBooths.set(boothId, { socketId: client.id, tenantId: booth.tenantId });
-    this.dashboardGateway.broadcastToTenant(booth.tenantId, 'booth_status', {
-      boothId,
-      online: true,
-    });
-    this.logger.log(`Booth connected: ${boothId}`);
-
-    // Sync: se o banco tiver config diferente do último heartbeat, força update
-    const dbBooth = await this.prisma.booth.findUnique({
-      where: { id: boothId },
-      select: { selectedCamera: true, selectedPrinter: true },
-    });
-    const lastKnown = this.boothDevices.get(boothId);
-    if (
-      dbBooth &&
-      lastKnown &&
-      (dbBooth.selectedCamera !== lastKnown.selectedCamera ||
-        dbBooth.selectedPrinter !== lastKnown.selectedPrinter)
-    ) {
-      this.sendForceHardwareUpdate(boothId, {
-        selectedCamera: dbBooth.selectedCamera ?? null,
-        selectedPrinter: dbBooth.selectedPrinter ?? null,
+      const booth = await this.prisma.booth.findFirst({
+        where: { id: boothId, token },
       });
+
+      if (!booth) {
+        this.logger.warn(`Connection rejected for booth ${boothId} — invalid token`);
+        client.disconnect();
+        return;
+      }
+
+      this.connectedBooths.set(boothId, { socketId: client.id, tenantId: booth.tenantId });
+      client.data['boothId'] = boothId;
+      this.dashboardGateway.broadcastToTenant(booth.tenantId, 'booth_status', {
+        boothId,
+        online: true,
+      });
+      this.logger.log(`Booth connected: ${boothId}`);
+
+      // Sync: push current DB config to totem on reconnect so it starts with authoritative state
+      const dbBooth = booth;
+      if (dbBooth && (dbBooth.selectedCamera || dbBooth.selectedPrinter)) {
+        this.sendForceHardwareUpdate(boothId, {
+          selectedCamera: dbBooth.selectedCamera ?? null,
+          selectedPrinter: dbBooth.selectedPrinter ?? null,
+        });
+      }
+    } catch (err) {
+      this.logger.error(`Error during booth connection: ${(err as Error).message}`);
+      client.disconnect();
     }
   }
 
@@ -109,45 +106,49 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('device_heartbeat')
   async handleDeviceHeartbeat(
     @MessageBody() data: DeviceHeartbeatEvent,
-    @ConnectedSocket() _client: Socket,
+    @ConnectedSocket() client: Socket,
   ) {
-    const entry = this.connectedBooths.get(data.boothId);
+    const boothId = client.data['boothId'] as string | undefined;
+    if (!boothId) return;
+    const entry = this.connectedBooths.get(boothId);
     if (!entry) return;
 
-    const status: DeviceStatusEvent = { ...data, lastSeen: new Date().toISOString() };
-    this.boothDevices.set(data.boothId, status);
+    const status: DeviceStatusEvent = { ...data, boothId, lastSeen: new Date().toISOString() };
+    this.boothDevices.set(boothId, status);
     this.dashboardGateway.broadcastToTenant(entry.tenantId, 'device_status', status);
   }
 
   @SubscribeMessage('hardware_updated')
   async handleHardwareUpdated(
-    @MessageBody() data: { boothId: string; selectedCamera: string | null; selectedPrinter: string | null },
-    @ConnectedSocket() _client: Socket,
+    @MessageBody() data: { selectedCamera: string | null; selectedPrinter: string | null },
+    @ConnectedSocket() client: Socket,
   ) {
-    const entry = this.connectedBooths.get(data.boothId);
+    const boothId = client.data['boothId'] as string | undefined;
+    if (!boothId) return;
+    const entry = this.connectedBooths.get(boothId);
     if (!entry) return;
 
     await this.prisma.booth.update({
-      where: { id: data.boothId },
+      where: { id: boothId },
       data: {
-        selectedCamera: data.selectedCamera,
-        selectedPrinter: data.selectedPrinter,
+        ...(data.selectedCamera !== undefined && { selectedCamera: data.selectedCamera }),
+        ...(data.selectedPrinter !== undefined && { selectedPrinter: data.selectedPrinter }),
       },
     });
 
-    const existing = this.boothDevices.get(data.boothId);
+    const existing = this.boothDevices.get(boothId);
     if (existing) {
       const updated: DeviceStatusEvent = {
         ...existing,
-        selectedCamera: data.selectedCamera,
-        selectedPrinter: data.selectedPrinter,
+        ...(data.selectedCamera !== undefined && { selectedCamera: data.selectedCamera }),
+        ...(data.selectedPrinter !== undefined && { selectedPrinter: data.selectedPrinter }),
         lastSeen: new Date().toISOString(),
       };
-      this.boothDevices.set(data.boothId, updated);
+      this.boothDevices.set(boothId, updated);
       this.dashboardGateway.broadcastToTenant(entry.tenantId, 'device_status', updated);
     }
 
-    this.logger.log(`Booth ${data.boothId} updated hardware locally`);
+    this.logger.log(`Booth ${boothId} updated hardware locally`);
   }
 
   isBoothOnline(boothId: string): boolean {
