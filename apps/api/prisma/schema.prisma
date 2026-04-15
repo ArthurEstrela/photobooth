@@ -45,6 +45,9 @@ model Booth {
   offlineCredits      Int            @default(0)
   demoSessionsPerHour Int            @default(3)
   cameraSound         Boolean        @default(true)
+  selectedCamera      String?
+  selectedPrinter     String?
+  maintenancePin      String?
   activeEventId       String?
   activeEvent         Event?         @relation("BoothActiveEvent", fields: [activeEventId], references: [id])
   createdAt           DateTime       @default(now())
