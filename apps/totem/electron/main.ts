@@ -76,3 +76,8 @@ ipcMain.on('print-photo', (event) => {
     });
   }
 });
+
+// 4. IPC Handlers: List Printers
+ipcMain.handle('get-printers', () => {
+  return mainWindow ? mainWindow.webContents.getPrinters() : [];
+});
