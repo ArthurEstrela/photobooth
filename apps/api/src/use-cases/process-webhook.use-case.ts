@@ -23,7 +23,7 @@ export class ProcessWebhookUseCase {
       where: {
         OR: [
           { externalId: externalId },
-          { id: externalId }, // DEV MOCK fallback
+          ...(process.env.NODE_ENV !== 'production' ? [{ id: externalId }] : []),
         ],
       },
       include: { booth: true },

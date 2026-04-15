@@ -1,6 +1,7 @@
 // apps/api/src/adapters/mercadopago.adapter.ts
 
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import axios from 'axios';
 
 export interface MercadoPagoPixResponse {
@@ -29,7 +30,7 @@ export class MercadoPagoAdapter {
           description: data.description,
           payment_method_id: 'pix',
           payer: {
-            email: 'test_user_123@testuser.com', // Placeholder for sandbox/production
+            email: process.env.MP_PAYER_EMAIL ?? 'cliente@photobooth.com.br',
           },
           ...(process.env.API_URL
             ? { notification_url: `${process.env.API_URL}/payments/webhook` }
@@ -39,7 +40,7 @@ export class MercadoPagoAdapter {
         {
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
-            'X-Idempotency-Key': `${Date.now()}-${data.metadata.boothId}`,
+            'X-Idempotency-Key': randomUUID(),
           },
         },
       );

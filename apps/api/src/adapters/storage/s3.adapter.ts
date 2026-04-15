@@ -27,25 +27,37 @@ export class S3StorageAdapter {
     const ext = mimeType.split('/')[1] ?? 'png';
     const key = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    try {
-      await this.s3Client.send(
-        new PutObjectCommand({
-          Bucket: this.bucketName,
-          Key: key,
-          Body: buffer,
-          ContentType: mimeType,
-        }),
-      );
+    const maxAttempts = 3;
+    let lastError: unknown;
 
-      let url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-      if (process.env.AWS_CLOUDFRONT_DOMAIN) {
-        url = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${key}`;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.s3Client.send(
+          new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: key,
+            Body: buffer,
+            ContentType: mimeType,
+          }),
+        );
+
+        let url = `https://${this.bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+        if (process.env.AWS_CLOUDFRONT_DOMAIN) {
+          url = `https://${process.env.AWS_CLOUDFRONT_DOMAIN}/${key}`;
+        }
+        this.logger.log(`File uploaded (attempt ${attempt}): ${url}`);
+        return url;
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxAttempts) {
+          const delayMs = 500 * 2 ** (attempt - 1); // 500ms, 1000ms
+          this.logger.warn(`S3 upload attempt ${attempt} failed, retrying in ${delayMs}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
       }
-      this.logger.log(`File uploaded: ${url}`);
-      return url;
-    } catch (error) {
-      this.logger.error('Error uploading file to S3', error);
-      throw new Error('Failed to upload file to cloud storage');
     }
+
+    this.logger.error('Error uploading file to S3 after 3 attempts', lastError);
+    throw new Error('Failed to upload file to cloud storage');
   }
 }
