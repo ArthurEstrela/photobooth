@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
+import { DeviceStatusEvent } from '@packages/shared';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -49,6 +50,13 @@ export const useDashboardSocket = () => {
     socket.on('booth_status', () => {
       queryClient.invalidateQueries({ queryKey: ['booths'] });
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
+    });
+
+    socket.on('device_status', (data: DeviceStatusEvent) => {
+      queryClient.setQueryData(['booth_devices', data.boothId], {
+        ...data,
+        lastSeen: data.lastSeen,
+      });
     });
 
     return () => { socket.disconnect(); };
