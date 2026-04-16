@@ -1,6 +1,6 @@
 // apps/api/src/controllers/photo.controller.ts
 
-import { Controller, Post, Get, Body, Param, Logger, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { SyncPhotoUseCase } from '../use-cases/sync-photo.use-case';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,7 +16,15 @@ export class PhotoController {
   @Post('sync')
   async syncPhoto(@Body() dto: { sessionId: string; photoBase64: string }) {
     this.logger.log(`Received sync request for session ${dto.sessionId}`);
-    return this.syncPhotoUseCase.execute(dto);
+    try {
+      return await this.syncPhotoUseCase.execute(dto);
+    } catch (err: any) {
+      const detail = err?.message ?? String(err);
+      this.logger.error(`syncPhoto failed for session ${dto.sessionId}: ${detail}`);
+      throw new InternalServerErrorException(
+        process.env.NODE_ENV !== 'production' ? detail : 'Photo sync failed',
+      );
+    }
   }
 
   @Get('public/:sessionId')

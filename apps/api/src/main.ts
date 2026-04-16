@@ -39,7 +39,12 @@ function validateEnv() {
 async function bootstrap() {
   validateEnv();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  // ── Body parser — 20 MB to handle base64-encoded photo strips ────────────────
+  const { json, urlencoded } = await import('express');
+  app.use(json({ limit: '20mb' }));
+  app.use(urlencoded({ extended: true, limit: '20mb' }));
   const logger = new Logger('Bootstrap');
 
   // ── Security headers ─────────────────────────────────────────────────────────
