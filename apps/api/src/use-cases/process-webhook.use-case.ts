@@ -40,6 +40,13 @@ export class ProcessWebhookUseCase {
       data: { status: PaymentStatus.APPROVED },
     });
 
+    // Digital upsell payments only need status update.
+    // DeliveryScreen polls GET /payments/:id and reacts when status = APPROVED.
+    if (payment.paymentType === 'DIGITAL') {
+      this.logger.log(`Digital payment ${payment.id} approved`);
+      return;
+    }
+
     // Create PhotoSession so the totem can reference it for S3 sync and digital upsell
     const photoSession = await this.prisma.photoSession.create({
       data: {
