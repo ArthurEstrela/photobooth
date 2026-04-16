@@ -31,7 +31,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = ({
   // 1. Fire print IPC immediately
   useEffect(() => {
     try {
-      (window as any).electronAPI?.printPhoto(photoUrl);
+      (window as any).totemAPI?.printPhoto();
     } catch {
       // Electron API not available in dev/test — ignore
     }
@@ -195,6 +195,20 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = ({
       )}
 
       <p className="text-white/50 text-base">Aguardando pagamento...</p>
+
+      {import.meta.env.DEV && digitalPayment && (
+        <button
+          onClick={() => {
+            axios.post(`${API_URL}/payments/webhook`, {
+              action: 'payment.updated',
+              data: { id: digitalPayment.paymentId },
+            }).catch(console.error);
+          }}
+          className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg text-sm font-semibold hover:bg-red-600/40 transition-colors"
+        >
+          [DEV] Simular Pagamento Digital Concluído
+        </button>
+      )}
 
       <button
         onClick={onDone}
