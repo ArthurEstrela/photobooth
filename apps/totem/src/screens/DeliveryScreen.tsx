@@ -81,8 +81,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = ({
         const res = await axios.get(`${API_URL}/payments/${digitalPayment.paymentId}`);
         if (res.data.status === 'APPROVED') {
           clearInterval(poll);
-          // Show confirmed state for 5s then done
-          setTimeout(onDone, 5000);
+          setPhase('free-download');
         }
       } catch {
         // ignore poll errors

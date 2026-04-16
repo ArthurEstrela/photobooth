@@ -99,8 +99,9 @@ export function useBoothMachine(
             { sessionId, photoBase64: dataUrl },
             { headers: { Authorization: `Bearer ${token}` } },
           );
-        } catch {
-          // Proceed to delivery even if S3 upload fails
+        } catch (err) {
+          // Non-fatal — delivery proceeds even if S3 upload fails
+          console.error('[completeSession] Failed to sync photo to S3:', err);
         }
       }
 
