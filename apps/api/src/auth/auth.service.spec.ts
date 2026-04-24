@@ -110,4 +110,39 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException);
     });
   });
+
+  describe('adminLogin', () => {
+    beforeEach(() => {
+      process.env.ADMIN_EMAIL = 'admin@photobooth.com';
+      process.env.ADMIN_PASSWORD_HASH = '$2b$10$22AWWXmhVQ8aSw5LP6K5uOJmPcsCm9oEOK82Hmejna1t5lOF4gmLm'; // bcrypt of 'secret123'
+    });
+
+    afterEach(() => {
+      delete process.env.ADMIN_EMAIL;
+      delete process.env.ADMIN_PASSWORD_HASH;
+    });
+
+    it('throws UnauthorizedException when ADMIN_EMAIL is not set', async () => {
+      delete process.env.ADMIN_EMAIL;
+      await expect(service.adminLogin('admin@photobooth.com', 'secret123')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException for wrong email', async () => {
+      await expect(service.adminLogin('wrong@email.com', 'secret123')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException for wrong password', async () => {
+      await expect(service.adminLogin('admin@photobooth.com', 'wrongpassword')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('returns token with role: admin on correct credentials', async () => {
+      mockJwt.sign.mockReturnValue('admin.jwt.token');
+      const result = await service.adminLogin('admin@photobooth.com', 'secret123');
+      expect(result).toEqual({ token: 'admin.jwt.token' });
+      expect(mockJwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'admin' }),
+        expect.objectContaining({ expiresIn: '24h' }),
+      );
+    });
+  });
 });

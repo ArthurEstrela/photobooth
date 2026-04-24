@@ -64,6 +64,28 @@ export class AuthService {
     });
   }
 
+  async adminLogin(email: string, password: string): Promise<{ token: string }> {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminHash = process.env.ADMIN_PASSWORD_HASH;
+
+    if (!adminEmail || !adminHash) {
+      throw new UnauthorizedException('Admin not configured');
+    }
+
+    const emailMatch = email === adminEmail;
+    const passwordMatch = await bcrypt.compare(password, adminHash);
+
+    if (!emailMatch || !passwordMatch) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const token = this.jwt.sign(
+      { sub: 'admin', email: adminEmail, role: 'admin' },
+      { expiresIn: '24h' },
+    );
+    return { token };
+  }
+
   private buildToken(tenant: {
     id: string;
     email: string;
