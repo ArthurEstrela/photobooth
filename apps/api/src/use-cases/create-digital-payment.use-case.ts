@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
+import { MpOAuthService } from '../auth/mp-oauth.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PixPaymentResponse } from '@packages/shared';
@@ -12,6 +13,7 @@ export class CreateDigitalPaymentUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mpAdapter: MercadoPagoAdapter,
+    private readonly mpOAuth: MpOAuthService,
     @InjectQueue('payment-expiration') private readonly paymentQueue: Queue,
   ) {}
 
@@ -25,8 +27,21 @@ export class CreateDigitalPaymentUseCase {
       throw new BadRequestException('Digital download is free for this event');
     }
 
+    let accessToken: string;
+    try {
+      accessToken = await this.mpOAuth.refreshIfNeeded(session.booth.tenantId);
+    } catch {
+      if (process.env.NODE_ENV !== 'production' && process.env.MP_ACCESS_TOKEN) {
+        accessToken = process.env.MP_ACCESS_TOKEN;
+      } else {
+        throw new BadRequestException(
+          'Conta Mercado Pago não conectada. Configure nas Configurações.',
+        );
+      }
+    }
+
     const amount = session.event.digitalPrice.toNumber();
-    const mpResponse = await this.mpAdapter.createPixPayment({
+    const mpResponse = await this.mpAdapter.createPixPayment(accessToken, {
       amount,
       description: `Digital Download — ${session.event.name}`,
       metadata: { boothId: session.boothId, eventId: session.eventId, sessionId },
