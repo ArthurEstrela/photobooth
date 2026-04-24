@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BoothGateway } from '../gateways/booth.gateway';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { S3StorageAdapter } from '../adapters/storage/s3.adapter';
+import { MpOAuthService } from '../auth/mp-oauth.service';
 
 const mockPrisma = {
   payment: { count: jest.fn(), aggregate: jest.fn(), findMany: jest.fn() },
@@ -20,6 +21,8 @@ const mockBoothGateway = {
   isBoothOnline: jest.fn(),
 };
 
+const mockMpOAuth = { disconnect: jest.fn() };
+
 const TENANT_USER = { user: { tenantId: 'tenant-1', email: 't@t.com' } };
 
 describe('TenantController', () => {
@@ -28,12 +31,14 @@ describe('TenantController', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockMpOAuth.disconnect.mockResolvedValue(undefined);
     const module = await Test.createTestingModule({
       controllers: [TenantController],
       providers: [
         { provide: PrismaService, useValue: mockPrisma },
         { provide: BoothGateway, useValue: mockBoothGateway },
         { provide: S3StorageAdapter, useValue: mockS3 },
+        { provide: MpOAuthService, useValue: mockMpOAuth },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -116,6 +121,44 @@ describe('TenantController', () => {
       expect(result.series[1].sessions).toBe(1);
       expect(result.bestDay?.date).toBe('2026-04-10');
       expect(result.mostActiveBooth?.name).toBe('Booth 1');
+    });
+  });
+
+  describe('GET /tenant/settings', () => {
+    it('returns mp.connected=true when mpAccessToken is set', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        logoUrl: null,
+        primaryColor: '#4f46e5',
+        brandName: 'Brand',
+        mpAccessToken: 'enc:token',
+        mpEmail: 'owner@mp.com',
+        mpConnectedAt: new Date('2026-01-01'),
+      });
+      const result = await controller.getSettings(TENANT_USER as any);
+      expect(result.mp.connected).toBe(true);
+      expect(result.mp.email).toBe('owner@mp.com');
+    });
+
+    it('returns mp.connected=false when mpAccessToken is null', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        logoUrl: null,
+        primaryColor: null,
+        brandName: null,
+        mpAccessToken: null,
+        mpEmail: null,
+        mpConnectedAt: null,
+      });
+      const result = await controller.getSettings(TENANT_USER as any);
+      expect(result.mp.connected).toBe(false);
+      expect(result.mp.email).toBeNull();
+    });
+  });
+
+  describe('DELETE /tenant/settings/mp', () => {
+    it('calls mpOAuth.disconnect and returns { ok: true }', async () => {
+      const result = await controller.disconnectMp(TENANT_USER as any);
+      expect(mockMpOAuth.disconnect).toHaveBeenCalledWith('tenant-1');
+      expect(result).toEqual({ ok: true });
     });
   });
 });

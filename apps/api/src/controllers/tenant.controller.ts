@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { BoothGateway } from '../gateways/booth.gateway';
 import { S3StorageAdapter } from '../adapters/storage/s3.adapter';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { MpOAuthService } from '../auth/mp-oauth.service';
 import { RequestUser } from '../auth/jwt.strategy';
 import {
   TenantMetrics,
@@ -47,6 +48,7 @@ export class TenantController {
     private readonly prisma: PrismaService,
     private readonly boothGateway: BoothGateway,
     private readonly s3: S3StorageAdapter,
+    private readonly mpOAuth: MpOAuthService,
   ) {}
 
   @Get('metrics')
@@ -203,10 +205,26 @@ export class TenantController {
   async getSettings(@Request() req: AuthReq): Promise<ITenantSettings> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: req.user.tenantId },
-      select: { logoUrl: true, primaryColor: true, brandName: true },
+      select: {
+        logoUrl: true,
+        primaryColor: true,
+        brandName: true,
+        mpAccessToken: true,
+        mpEmail: true,
+        mpConnectedAt: true,
+      },
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    return tenant;
+    return {
+      logoUrl: tenant.logoUrl,
+      primaryColor: tenant.primaryColor,
+      brandName: tenant.brandName,
+      mp: {
+        connected: !!tenant.mpAccessToken,
+        email: tenant.mpEmail ?? null,
+        connectedAt: tenant.mpConnectedAt ?? null,
+      },
+    };
   }
 
   @Put('settings')
@@ -214,11 +232,34 @@ export class TenantController {
     @Body() body: UpdateTenantSettingsDto,
     @Request() req: AuthReq,
   ): Promise<ITenantSettings> {
-    return this.prisma.tenant.update({
+    const tenant = await this.prisma.tenant.update({
       where: { id: req.user.tenantId },
       data: body,
-      select: { logoUrl: true, primaryColor: true, brandName: true },
+      select: {
+        logoUrl: true,
+        primaryColor: true,
+        brandName: true,
+        mpAccessToken: true,
+        mpEmail: true,
+        mpConnectedAt: true,
+      },
     });
+    return {
+      logoUrl: tenant.logoUrl,
+      primaryColor: tenant.primaryColor,
+      brandName: tenant.brandName,
+      mp: {
+        connected: !!tenant.mpAccessToken,
+        email: tenant.mpEmail ?? null,
+        connectedAt: tenant.mpConnectedAt ?? null,
+      },
+    };
+  }
+
+  @Delete('settings/mp')
+  async disconnectMp(@Request() req: AuthReq) {
+    await this.mpOAuth.disconnect(req.user.tenantId);
+    return { ok: true };
   }
 
   // ─── Templates ──────────────────────────────────────────────────────────────

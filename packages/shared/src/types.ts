@@ -270,6 +270,11 @@ export interface ITenantSettings {
   logoUrl: string | null;
   primaryColor: string | null;
   brandName: string | null;
+  mp: {
+    connected: boolean;
+    email: string | null;
+    connectedAt: Date | null;
+  };
 }
 
 // ─── Analytics ───────────────────────────────────────────────────────────────
