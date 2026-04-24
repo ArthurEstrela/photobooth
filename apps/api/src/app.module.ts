@@ -9,6 +9,8 @@ import { PrismaService } from './prisma/prisma.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
+import { MpOAuthController } from './auth/mp-oauth.controller';
+import { MpOAuthService } from './auth/mp-oauth.service';
 import { TenantController } from './controllers/tenant.controller';
 import { EventController } from './controllers/event.controller';
 import { BoothsController } from './controllers/booths.controller';
@@ -24,6 +26,7 @@ import { ProcessWebhookUseCase } from './use-cases/process-webhook.use-case';
 import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
 import { PaymentExpirationProcessor } from './workers/payment-expiration.processor';
 import { S3StorageAdapter } from './adapters/storage/s3.adapter';
+import { CryptoModule } from './crypto/crypto.module';
 
 @Module({
   imports: [
@@ -31,7 +34,6 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
     }),
-    // Global rate-limit: 60 req / 60s per IP. Payment routes use stricter @Throttle decorator.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     PassportModule,
     JwtModule.register({
@@ -44,9 +46,11 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
     BullModule.registerQueue({
       name: 'payment-expiration',
     }),
+    CryptoModule,
   ],
   controllers: [
     AuthController,
+    MpOAuthController,
     TenantController,
     EventController,
     BoothsController,
@@ -55,11 +59,11 @@ import { S3StorageAdapter } from './adapters/storage/s3.adapter';
     HealthController,
   ],
   providers: [
-    // Apply ThrottlerGuard globally; individual routes can override with @Throttle()
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     PrismaService,
     AuthService,
     JwtStrategy,
+    MpOAuthService,
     BoothGateway,
     DashboardGateway,
     MercadoPagoAdapter,
