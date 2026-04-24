@@ -85,7 +85,8 @@ export class AdminGuard implements CanActivate {
     if (!auth?.startsWith('Bearer ')) throw new UnauthorizedException();
     try {
       const payload = this.jwt.verify(auth.slice(7)) as any;
-      if (payload.role !== 'admin') throw new UnauthorizedException();
+      // impersonated tokens must NOT access admin endpoints
+      if (payload.role !== 'admin' || payload.impersonated) throw new UnauthorizedException();
       request.user = payload;
       return true;
     } catch {
@@ -190,8 +191,10 @@ export class AdminController {
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
+    // impersonated: true flag allows ImpersonationBanner to survive hard reloads
+    // by deriving isImpersonating from the token itself, not from React state
     const token = this.jwt.sign(
-      { sub: tenant.id, email: tenant.email },
+      { sub: tenant.id, email: tenant.email, impersonated: true },
       { expiresIn: '7d' },
     );
     return { token, tenantId: tenant.id, email: tenant.email };
@@ -211,18 +214,38 @@ Stores admin token in `localStorage` under key `admin_token`. Exposes:
 interface AdminAuthContextValue {
   adminToken: string | null;
   adminEmail: string | null;
-  isImpersonating: boolean;
-  impersonatedEmail: string | null;
+  isImpersonating: boolean;       // derived — NOT useState
+  impersonatedEmail: string | null; // derived from token payload
   adminLogin: (email: string, password: string) => Promise<void>;
   adminLogout: () => void;
-  startImpersonation: (tenantToken: string, tenantEmail: string) => void;
+  startImpersonation: (tenantToken: string) => void;
   stopImpersonation: () => void;
 }
 ```
 
-`startImpersonation` calls `AuthContext.setToken(tenantToken)` (a new method to be added to the existing `AuthContext`), and stores `impersonatedEmail` in `AdminAuthContext` state.
+**Key design: `isImpersonating` is derived, not stored in state.**
 
-`stopImpersonation` calls `AuthContext.setToken(null)` to clear the tenant session, then restores admin-only view.
+After a hard reload (`window.location.href = '/'`), React state is wiped but localStorage survives. So `isImpersonating` is computed on every render:
+
+```typescript
+import { jwtDecode } from 'jwt-decode';
+
+const activeToken = localStorage.getItem('token'); // the current tenant token
+const adminToken = localStorage.getItem('admin_token');
+
+const isImpersonating =
+  !!adminToken &&
+  !!activeToken &&
+  (jwtDecode(activeToken) as any).impersonated === true;
+
+const impersonatedEmail = isImpersonating
+  ? (jwtDecode(activeToken!) as any).email
+  : null;
+```
+
+`startImpersonation(tenantToken)` saves the token to `localStorage` key `token` (same key the regular `AuthContext` uses) and triggers a full page reload via `window.location.href = '/'`. On reload, `isImpersonating` is derived as `true` automatically because the token has `impersonated: true`.
+
+`stopImpersonation()` removes the `token` key from localStorage and redirects to `/admin`. The `admin_token` stays — Arthur remains logged in as admin.
 
 ---
 
@@ -311,16 +334,16 @@ Arthur opens /admin/login
 
 Arthur clicks "Entrar como" on tenant row
 → POST /admin/impersonate/:tenantId (with admin JWT)
-← { token: "tenant-jwt...", email: "tenant@email.com" }
-→ tenant JWT saved to AuthContext (replaces any current token)
-→ isImpersonating = true, impersonatedEmail = "tenant@email.com"
-→ redirected to /
+← { token: "tenant-jwt-with-impersonated:true...", email: "tenant@email.com" }
+→ localStorage.setItem('token', tenantToken)  ← written directly, not via AuthContext
+→ window.location.href = '/'  ← hard reload clears React Query cache
+→ on reload: isImpersonating derived as true (admin_token exists + token.impersonated === true)
 
 Arthur sees ImpersonationBanner: "Visualizando como: tenant@email.com [Sair]"
 Arthur clicks Sair
-→ AuthContext token cleared
-→ isImpersonating = false
-→ redirected to /admin
+→ localStorage.removeItem('token')
+→ window.location.href = '/admin'
+→ on reload: admin_token still present, no tenant token → admin view
 ```
 
 ---
