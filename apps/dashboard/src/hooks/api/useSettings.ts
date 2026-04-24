@@ -46,3 +46,22 @@ export const useChangePassword = () =>
     },
   });
 
+export const useConnectMp = () =>
+  useMutation({
+    mutationFn: async () => {
+      const { data } = await api.get<{ url: string }>('/auth/mp/connect');
+      window.location.href = data.url;
+    },
+  });
+
+export const useDisconnectMp = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      await api.delete('/tenant/settings/mp');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+};

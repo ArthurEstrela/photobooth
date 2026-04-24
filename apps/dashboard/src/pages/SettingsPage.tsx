@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, CheckCircle, Link2, Unlink } from 'lucide-react';
 import { Card, Button, Input, Modal, Skeleton } from '../components/ui';
-import { useSettings, useUpdateSettings, useUploadLogo, useChangePassword } from '../hooks/api/useSettings';
+import {
+  useSettings,
+  useUpdateSettings,
+  useUploadLogo,
+  useChangePassword,
+  useConnectMp,
+  useDisconnectMp,
+} from '../hooks/api/useSettings';
 import { useAuth } from '../context/AuthContext';
 
 function hexToRgb(hex: string): string {
@@ -12,12 +19,35 @@ function hexToRgb(hex: string): string {
   return `${r} ${g} ${b}`;
 }
 
+function useOAuthToast() {
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mp = params.get('mp');
+    if (mp === 'connected') {
+      setToast({ type: 'success', message: 'Mercado Pago conectado com sucesso!' });
+      params.delete('mp');
+      window.history.replaceState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+    } else if (mp === 'error') {
+      setToast({ type: 'error', message: 'Erro ao conectar Mercado Pago. Tente novamente.' });
+      params.delete('mp');
+      window.history.replaceState({}, '', `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`);
+    }
+  }, []);
+
+  return { toast, clearToast: () => setToast(null) };
+}
+
 export const SettingsPage: React.FC = () => {
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const uploadLogo = useUploadLogo();
   const changePassword = useChangePassword();
+  const connectMp = useConnectMp();
+  const disconnectMp = useDisconnectMp();
   const { user } = useAuth();
+  const { toast, clearToast } = useOAuthToast();
 
   const [brandName, setBrandName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#4f46e5');
@@ -33,7 +63,6 @@ export const SettingsPage: React.FC = () => {
     }
   }, [settings]);
 
-  // Live preview of primary color
   useEffect(() => {
     try {
       const rgb = hexToRgb(primaryColor);
@@ -41,9 +70,7 @@ export const SettingsPage: React.FC = () => {
     } catch {}
   }, [primaryColor]);
 
-  const handleSaveBranding = () => {
-    updateSettings.mutate({ brandName, primaryColor });
-  };
+  const handleSaveBranding = () => updateSettings.mutate({ brandName, primaryColor });
 
   const handleClosePasswordModal = () => {
     setPasswordOpen(false);
@@ -59,29 +86,38 @@ export const SettingsPage: React.FC = () => {
       {
         onSuccess: handleClosePasswordModal,
         onError: (err: any) => {
-          setPwError(
-            err?.response?.data?.message ?? 'Erro ao alterar senha. Tente novamente.',
-          );
+          setPwError(err?.response?.data?.message ?? 'Erro ao alterar senha. Tente novamente.');
         },
       },
     );
   };
 
-  const handleLogoUpload = (file: File) => {
-    uploadLogo.mutate(file);
-  };
-
   if (isLoading) return <Skeleton className="h-64 w-full rounded-2xl" />;
+
+  const mp = settings?.mp;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
 
+      {/* OAuth toast */}
+      {toast && (
+        <div
+          className={`p-4 rounded-xl text-sm font-medium flex items-center justify-between ${
+            toast.type === 'success'
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          <span>{toast.message}</span>
+          <button onClick={clearToast} className="ml-4 text-current opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
       {/* Identity / White-label */}
       <Card padding="md" className="space-y-5">
         <p className="font-semibold text-gray-900">Identidade Visual</p>
 
-        {/* Logo upload */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-2">Logo</label>
           {settings?.logoUrl && (
@@ -102,7 +138,7 @@ export const SettingsPage: React.FC = () => {
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleLogoUpload(file);
+              if (file) uploadLogo.mutate(file);
             }}
           />
           {uploadLogo.isPending && <p className="text-xs text-gray-400 mt-1">Enviando...</p>}
@@ -115,7 +151,6 @@ export const SettingsPage: React.FC = () => {
           placeholder="Ex: PhotoBooth OS"
         />
 
-        {/* Color picker */}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-2">Cor primária</label>
           <div className="flex items-center gap-3">
@@ -134,7 +169,6 @@ export const SettingsPage: React.FC = () => {
             <div
               className="w-10 h-10 rounded-lg border border-gray-200 shrink-0"
               style={{ backgroundColor: primaryColor }}
-              title="Preview"
             />
           </div>
         </div>
@@ -144,6 +178,54 @@ export const SettingsPage: React.FC = () => {
             Salvar alterações
           </Button>
         </div>
+      </Card>
+
+      {/* Mercado Pago */}
+      <Card padding="md" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-gray-900">Mercado Pago</p>
+          {mp?.connected && (
+            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+              <CheckCircle size={15} />
+              Conectado
+            </span>
+          )}
+        </div>
+
+        {mp?.connected ? (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-600">
+              <p>Conta: <span className="font-medium text-gray-900">{mp.email ?? '—'}</span></p>
+              {mp.connectedAt && (
+                <p className="mt-1 text-gray-400 text-xs">
+                  Conectado em {new Date(mp.connectedAt).toLocaleDateString('pt-BR')}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => disconnectMp.mutate()}
+              loading={disconnectMp.isPending}
+            >
+              <Unlink size={14} className="mr-1.5" />
+              Desconectar
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Nenhuma conta conectada. Conecte sua conta do Mercado Pago para receber pagamentos.
+            </p>
+            <Button
+              onClick={() => connectMp.mutate()}
+              loading={connectMp.isPending}
+            >
+              <Link2 size={14} className="mr-1.5" />
+              Conectar Mercado Pago
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Account */}
@@ -173,12 +255,7 @@ export const SettingsPage: React.FC = () => {
             <Button
               onClick={handleChangePassword}
               loading={changePassword.isPending}
-              disabled={
-                !pwForm.current ||
-                !pwForm.next ||
-                pwForm.next !== pwForm.confirm ||
-                changePassword.isPending
-              }
+              disabled={!pwForm.current || !pwForm.next || pwForm.next !== pwForm.confirm || changePassword.isPending}
             >
               Alterar
             </Button>
