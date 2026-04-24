@@ -49,4 +49,17 @@ describe('TokenCryptoService', () => {
     process.env.MP_TOKEN_ENCRYPTION_KEY = 'tooshort';
     expect(() => new TokenCryptoService()).toThrow('MP_TOKEN_ENCRYPTION_KEY');
   });
+
+  it('throws on key with correct length but non-hex characters', () => {
+    process.env.MP_TOKEN_ENCRYPTION_KEY = 'g'.repeat(64);
+    expect(() => new TokenCryptoService()).toThrow('MP_TOKEN_ENCRYPTION_KEY');
+  });
+
+  it('throws on decrypt with malformed format (no colons)', () => {
+    expect(() => service.decrypt('notvalid')).toThrow('Invalid encrypted token format');
+  });
+
+  it('throws on decrypt with null/undefined input', () => {
+    expect(() => service.decrypt(null as any)).toThrow('Invalid encrypted token format');
+  });
 });
