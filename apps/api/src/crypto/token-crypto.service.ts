@@ -13,6 +13,9 @@ export class TokenCryptoService {
       throw new Error('MP_TOKEN_ENCRYPTION_KEY must be 64 hex chars (32 bytes)');
     }
     this.key = Buffer.from(hex, 'hex');
+    if (this.key.length !== 32) {
+      throw new Error('MP_TOKEN_ENCRYPTION_KEY must be 64 valid hex chars (32 bytes)');
+    }
   }
 
   encrypt(plaintext: string): string {
@@ -24,7 +27,11 @@ export class TokenCryptoService {
   }
 
   decrypt(stored: string): string {
-    const [ivHex, tagHex, encHex] = stored.split(':');
+    const parts = stored?.split(':');
+    if (!parts || parts.length !== 3) {
+      throw new Error('Invalid encrypted token format');
+    }
+    const [ivHex, tagHex, encHex] = parts;
     const iv = Buffer.from(ivHex, 'hex');
     const tag = Buffer.from(tagHex, 'hex');
     const encrypted = Buffer.from(encHex, 'hex');
