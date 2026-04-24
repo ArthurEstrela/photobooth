@@ -19,20 +19,26 @@ model Plan {
 }
 
 model Tenant {
-  id           String     @id @default(uuid())
-  name         String
-  email        String     @unique
-  passwordHash String
-  logoUrl      String?
-  primaryColor String?
-  brandName    String?
-  planId       String?
-  plan         Plan?      @relation(fields: [planId], references: [id])
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  booths       Booth[]
-  events       Event[]
-  templates    Template[]
+  id               String     @id @default(uuid())
+  name             String
+  email            String     @unique
+  passwordHash     String
+  logoUrl          String?
+  primaryColor     String?
+  brandName        String?
+  mpAccessToken    String?
+  mpRefreshToken   String?
+  mpUserId         String?
+  mpEmail          String?
+  mpTokenExpiresAt DateTime?
+  mpConnectedAt    DateTime?
+  planId           String?
+  plan             Plan?      @relation(fields: [planId], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  booths           Booth[]
+  events           Event[]
+  templates        Template[]
 }
 
 model Booth {
