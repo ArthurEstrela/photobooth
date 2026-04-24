@@ -69,7 +69,10 @@ export class MpOAuthService {
   }
 
   async refreshIfNeeded(tenantId: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { mpAccessToken: true, mpRefreshToken: true, mpTokenExpiresAt: true },
+    });
     if (!tenant?.mpAccessToken || !tenant.mpRefreshToken) {
       throw new Error('No MP credentials for tenant');
     }

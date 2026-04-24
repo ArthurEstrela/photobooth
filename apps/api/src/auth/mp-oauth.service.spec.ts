@@ -90,6 +90,8 @@ describe('MpOAuthService', () => {
       expect(mockPrisma.tenant.update).toHaveBeenCalledWith({
         where: { id: 'tenant-1' },
         data: expect.objectContaining({
+          mpAccessToken: 'enc:APP_USR-access-token',
+          mpRefreshToken: 'enc:APP_USR-refresh-token',
           mpUserId: '123456',
           mpEmail: 'owner@mp.com',
         }),
@@ -116,6 +118,23 @@ describe('MpOAuthService', () => {
     it('throws when tenant has no MP credentials', async () => {
       mockPrisma.tenant.findUnique.mockResolvedValue({ mpAccessToken: null, mpRefreshToken: null });
       await expect(service.refreshIfNeeded('tenant-1')).rejects.toThrow('No MP credentials');
+    });
+
+    it('refreshes when mpTokenExpiresAt is null (treats as expired)', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        mpAccessToken: 'enc:APP_USR-token',
+        mpRefreshToken: 'enc:APP_USR-rtoken',
+        mpTokenExpiresAt: null,
+      });
+      mockedAxios.post.mockResolvedValue({ data: { ...MP_TOKEN_RESPONSE, access_token: 'refreshed-token' } });
+      mockPrisma.tenant.update.mockResolvedValue({});
+
+      const result = await service.refreshIfNeeded('tenant-1');
+      expect(result).toBe('refreshed-token');
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'https://api.mercadopago.com/oauth/token',
+        expect.objectContaining({ grant_type: 'refresh_token' }),
+      );
     });
 
     it('returns decrypted access token when token is fresh (>7d)', async () => {
