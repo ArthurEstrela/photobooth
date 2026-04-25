@@ -26,6 +26,9 @@ import { CreateDigitalPaymentUseCase } from './use-cases/create-digital-payment.
 import { ProcessWebhookUseCase } from './use-cases/process-webhook.use-case';
 import { SyncPhotoUseCase } from './use-cases/sync-photo.use-case';
 import { PaymentExpirationProcessor } from './workers/payment-expiration.processor';
+import { GenerateInvoicesUseCase } from './use-cases/generate-invoices.use-case';
+import { CheckOverdueInvoicesUseCase } from './use-cases/check-overdue-invoices.use-case';
+import { SubscriptionBillingProcessor } from './workers/subscription-billing.processor';
 import { S3StorageAdapter } from './adapters/storage/s3.adapter';
 import { CryptoModule } from './crypto/crypto.module';
 
@@ -44,9 +47,10 @@ import { CryptoModule } from './crypto/crypto.module';
     BullModule.forRoot({
       redis: process.env.REDIS_URL || 'redis://localhost:6379',
     }),
-    BullModule.registerQueue({
-      name: 'payment-expiration',
-    }),
+    BullModule.registerQueue(
+      { name: 'payment-expiration' },
+      { name: 'subscription-billing' },
+    ),
     CryptoModule,
   ],
   controllers: [
@@ -74,6 +78,9 @@ import { CryptoModule } from './crypto/crypto.module';
     ProcessWebhookUseCase,
     SyncPhotoUseCase,
     PaymentExpirationProcessor,
+    GenerateInvoicesUseCase,
+    CheckOverdueInvoicesUseCase,
+    SubscriptionBillingProcessor,
     S3StorageAdapter,
   ],
 })
