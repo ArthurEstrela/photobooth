@@ -32,4 +32,10 @@ export class AuthController {
   changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.sub, dto);
   }
+
+  @Post('admin/login')
+  @HttpCode(HttpStatus.OK)
+  adminLogin(@Body() body: { email: string; password: string }) {
+    return this.authService.adminLogin(body.email, body.password);
+  }
 }
