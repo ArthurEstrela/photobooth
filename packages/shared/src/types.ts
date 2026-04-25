@@ -111,6 +111,7 @@ export interface BoothConfigDto {
   offlineCredits: number;
   demoSessionsPerHour: number;
   cameraSound: boolean;
+  suspended: boolean;
   branding: BoothBranding;
   devices: {
     selectedCamera: string | null;

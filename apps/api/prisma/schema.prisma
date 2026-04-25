@@ -9,6 +9,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum SubStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
 model Plan {
   id                  String   @id @default(uuid())
   name                String
@@ -32,6 +44,10 @@ model Tenant {
   mpEmail          String?
   mpTokenExpiresAt DateTime?
   mpConnectedAt    DateTime?
+  subscriptionStatus   SubStatus @default(ACTIVE)
+  pricePerBooth        Decimal   @default(200)
+  billingAnchorDay     Int       @default(1)
+  subscriptionInvoices SubscriptionInvoice[]
   planId           String?
   plan             Plan?      @relation(fields: [planId], references: [id])
   createdAt        DateTime   @default(now())
@@ -131,4 +147,20 @@ model PhotoSession {
   event     Event    @relation(fields: [eventId], references: [id])
   photoUrls String[]
   createdAt DateTime @default(now())
+}
+
+model SubscriptionInvoice {
+  id            String        @id @default(uuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  boothCount    Int
+  pricePerBooth Decimal
+  amount        Decimal
+  dueDate       DateTime
+  status        InvoiceStatus @default(PENDING)
+  externalId    String?       @unique
+  qrCode        String?
+  qrCodeBase64  String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
 }
