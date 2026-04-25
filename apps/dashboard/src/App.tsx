@@ -3,8 +3,11 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DashboardLayout } from './components/DashboardLayout';
 import { AuthProvider } from './context/AuthContext';
+import { AdminAuthProvider } from './context/AdminAuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AdminLoginPage } from './pages/AdminLoginPage';
+import { AdminTenantsPage } from './pages/AdminTenantsPage';
 import { useDashboardSocket } from './hooks/useDashboardSocket';
 import { Skeleton } from './components/ui';
 
@@ -54,7 +57,8 @@ function AppContent() {
   const isPublic =
     location.pathname.startsWith('/p/') ||
     location.pathname === '/login' ||
-    location.pathname === '/register';
+    location.pathname === '/register' ||
+    location.pathname.startsWith('/admin');
 
   if (isPublic) {
     return (
@@ -62,6 +66,8 @@ function AppContent() {
         <Route path="/p/:sessionId" element={<GuestPhoto />} />
         <Route path="/login"        element={<LoginPage />} />
         <Route path="/register"     element={<RegisterPage />} />
+        <Route path="/admin/login"  element={<AdminLoginPage />} />
+        <Route path="/admin"        element={<AdminTenantsPage />} />
         <Route path="*"             element={<NotFoundPage />} />
       </Routes>
     );
@@ -96,9 +102,11 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
+          <AdminAuthProvider>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </AdminAuthProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

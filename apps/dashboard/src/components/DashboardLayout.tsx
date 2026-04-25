@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from './ui';
 import { useAuth } from '../context/AuthContext';
+import { ImpersonationBanner } from './ImpersonationBanner';
 
 const NAV_ITEMS = [
   { label: 'Início',        icon: LayoutDashboard, path: '/' },
@@ -42,6 +43,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <ImpersonationBanner />
       {/* ── DESKTOP SIDEBAR (lg+) ─────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 h-screen bg-white border-r border-gray-100 fixed left-0 top-0 z-10">
         <div className="px-5 h-16 flex items-center border-b border-gray-100">
