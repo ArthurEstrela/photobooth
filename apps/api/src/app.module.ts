@@ -11,6 +11,7 @@ import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { MpOAuthController } from './auth/mp-oauth.controller';
 import { MpOAuthService } from './auth/mp-oauth.service';
+import { AdminController } from './controllers/admin.controller';
 import { TenantController } from './controllers/tenant.controller';
 import { EventController } from './controllers/event.controller';
 import { BoothsController } from './controllers/booths.controller';
@@ -51,6 +52,7 @@ import { CryptoModule } from './crypto/crypto.module';
   controllers: [
     AuthController,
     MpOAuthController,
+    AdminController,
     TenantController,
     EventController,
     BoothsController,
