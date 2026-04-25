@@ -24,8 +24,10 @@ export class AuthService {
     if (existing) throw new ConflictException('Email já cadastrado');
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const billingAnchorDay = Math.min(new Date().getDate(), 28);
+
     const tenant = await this.prisma.tenant.create({
-      data: { name: dto.name, email: dto.email, passwordHash },
+      data: { name: dto.name, email: dto.email, passwordHash, billingAnchorDay },
     });
 
     return this.buildToken(tenant);

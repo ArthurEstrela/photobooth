@@ -69,6 +69,17 @@ describe('AuthService', () => {
 
       expect(mockPrisma.tenant.create).not.toHaveBeenCalled();
     });
+
+    it('sets billingAnchorDay from signup date (capped at 28)', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue(null);
+      mockPrisma.tenant.create.mockResolvedValue({ id: 'tenant-1', email: 'test@test.com' });
+
+      await service.register({ name: 'Test', email: 'test@test.com', password: '12345678' });
+
+      const createCall = mockPrisma.tenant.create.mock.calls[0][0];
+      expect(createCall.data.billingAnchorDay).toBeGreaterThanOrEqual(1);
+      expect(createCall.data.billingAnchorDay).toBeLessThanOrEqual(28);
+    });
   });
 
   describe('login', () => {
