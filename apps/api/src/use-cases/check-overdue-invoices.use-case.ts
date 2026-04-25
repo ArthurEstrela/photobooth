@@ -15,10 +15,7 @@ export class CheckOverdueInvoicesUseCase {
       select: { id: true, tenantId: true },
     });
 
-    if (overdueInvoices.length === 0) {
-      await this.prisma.$transaction([]);
-      return;
-    }
+    if (overdueInvoices.length === 0) return;
 
     const tenantIds = [...new Set(overdueInvoices.map((i) => i.tenantId))];
 
