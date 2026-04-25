@@ -16,7 +16,7 @@ const mockMpAdapter = { createPixPayment: jest.fn() };
 
 const TENANT = {
   id: 'tenant-1',
-  pricePerBooth: { valueOf: () => 200 },
+  pricePerBooth: { valueOf: () => 200, toNumber: () => 200, toString: () => '200' },
   _count: { booths: 3 },
 };
 
@@ -56,6 +56,9 @@ describe('GenerateInvoicesUseCase', () => {
 
     await useCase.execute();
 
+    expect(mockPrisma.subscriptionInvoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ amount: 600 }) }),
+    );
     expect(mockMpAdapter.createPixPayment).toHaveBeenCalledWith(
       'test-mp-token',
       expect.objectContaining({ amount: 600, description: expect.stringContaining('3 cabine') }),

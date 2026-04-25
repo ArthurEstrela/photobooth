@@ -12,6 +12,9 @@ export class GenerateInvoicesUseCase {
   ) {}
 
   async execute(): Promise<void> {
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) throw new Error('MP_ACCESS_TOKEN environment variable is not set');
+
     const today = new Date().getDate();
 
     const tenants = await this.prisma.tenant.findMany({
@@ -20,9 +23,9 @@ export class GenerateInvoicesUseCase {
     });
 
     for (const tenant of tenants) {
-      // Idempotency: skip if invoice already generated this billing period
+      // Idempotency: skip if invoice already generated this calendar month
       const periodStart = new Date();
-      periodStart.setDate(today);
+      periodStart.setDate(1);
       periodStart.setHours(0, 0, 0, 0);
 
       const existing = await this.prisma.subscriptionInvoice.findFirst({
@@ -37,18 +40,17 @@ export class GenerateInvoicesUseCase {
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 7);
 
-      const invoice = await this.prisma.subscriptionInvoice.create({
-        data: {
-          tenantId: tenant.id,
-          boothCount,
-          pricePerBooth: tenant.pricePerBooth,
-          amount,
-          dueDate,
-        },
-      });
-
       try {
-        const accessToken = process.env.MP_ACCESS_TOKEN!;
+        const invoice = await this.prisma.subscriptionInvoice.create({
+          data: {
+            tenantId: tenant.id,
+            boothCount,
+            pricePerBooth: tenant.pricePerBooth,
+            amount,
+            dueDate,
+          },
+        });
+
         const mpResponse = await this.mpAdapter.createPixPayment(accessToken, {
           amount,
           description: `Assinatura PhotoBooth — ${boothCount} cabine(s)`,
