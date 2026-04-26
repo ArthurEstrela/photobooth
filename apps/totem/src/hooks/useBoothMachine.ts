@@ -70,7 +70,13 @@ export function useBoothMachine(
           amount,
         });
         setCurrentPayment(res.data);
-      } catch {
+      } catch (err: any) {
+        // 402 = subscription suspended — force config reload to pick up suspended: true
+        if (err?.response?.status === 402) {
+          transition(BoothState.IDLE);
+          window.location.reload();
+          return;
+        }
         const mode = config?.offlineMode ?? OfflineMode.BLOCK;
         if (mode === OfflineMode.DEMO) {
           setSessionId(`offline-${Date.now()}`);
