@@ -26,6 +26,7 @@ const GalleryPage   = lazy(() => import('./pages/GalleryPage').then((m) => ({ de
 const PaymentsPage  = lazy(() => import('./pages/PaymentsPage').then((m) => ({ default: m.PaymentsPage })));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })));
 const SettingsPage  = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const BillingPage   = lazy(() => import('./pages/BillingPage').then((m) => ({ default: m.BillingPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +89,7 @@ function AppContent() {
               <Route path="/payments"  element={<PaymentsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/settings"  element={<SettingsPage />} />
+              <Route path="/billing"   element={<BillingPage />} />
               <Route path="*"          element={<NotFoundPage />} />
             </Routes>
           </Suspense>

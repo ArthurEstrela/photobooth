@@ -1,15 +1,34 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DashboardLayout } from './DashboardLayout';
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { email: 'test@test.com' }, logout: vi.fn() }),
 }));
 
+vi.mock('../context/AdminAuthContext', () => ({
+  useAdminAuth: () => ({ isImpersonating: false, impersonatedEmail: null, stopImpersonation: vi.fn() }),
+}));
+
+vi.mock('../hooks/api/useBilling', () => ({
+  useBilling: () => ({ data: null, isLoading: true }),
+}));
+
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+}
+
 describe('DashboardLayout', () => {
   it('renders nav items on desktop sidebar', () => {
-    render(
+    renderWithProviders(
       <MemoryRouter initialEntries={['/']}>
         <DashboardLayout><div>Content</div></DashboardLayout>
       </MemoryRouter>
@@ -20,7 +39,7 @@ describe('DashboardLayout', () => {
   });
 
   it('marks active route with text-primary class', () => {
-    render(
+    renderWithProviders(
       <MemoryRouter initialEntries={['/booths']}>
         <DashboardLayout><div /></DashboardLayout>
       </MemoryRouter>

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Smartphone, Calendar, Layers, Image,
-  CreditCard, BarChart2, Settings, LogOut, MoreHorizontal, X,
+  CreditCard, Receipt, BarChart2, Settings, LogOut, MoreHorizontal, X,
 } from 'lucide-react';
 import { Avatar } from './ui';
 import { useAuth } from '../context/AuthContext';
 import { ImpersonationBanner } from './ImpersonationBanner';
+import { BillingWall } from './BillingWall';
 
 const NAV_ITEMS = [
   { label: 'Início',        icon: LayoutDashboard, path: '/' },
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { label: 'Molduras',      icon: Layers,          path: '/frames' },
   { label: 'Galeria',       icon: Image,           path: '/gallery' },
   { label: 'Pagamentos',    icon: CreditCard,      path: '/payments' },
+  { label: 'Assinatura',    icon: Receipt,         path: '/billing' },
   { label: 'Analytics',     icon: BarChart2,       path: '/analytics' },
   { label: 'Configurações', icon: Settings,        path: '/settings' },
 ];
@@ -44,6 +46,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   return (
     <div className="flex h-screen bg-gray-50">
       <ImpersonationBanner />
+      <BillingWall />
       {/* ── DESKTOP SIDEBAR (lg+) ─────────────────────────────── */}
       <aside className="hidden lg:flex flex-col w-64 h-screen bg-white border-r border-gray-100 fixed left-0 top-0 z-10">
         <div className="px-5 h-16 flex items-center border-b border-gray-100">
