@@ -38,7 +38,7 @@ export const BillingWall: React.FC = () => {
 
         <div className="space-y-1">
           <p className="text-white text-xl font-bold">
-            R$ {invoice?.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            R$ {invoice?.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '—'}
           </p>
           <p className="text-white/40 text-xs">
             {boothCount} cabine(s) × R$ {pricePerBooth.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

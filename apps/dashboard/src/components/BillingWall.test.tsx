@@ -41,6 +41,23 @@ describe('BillingWall', () => {
     expect(screen.getByText(/R\$\s*600/)).toBeTruthy();
   });
 
+  it('renders overlay without amount when invoice is null', () => {
+    vi.mocked(useBilling).mockReturnValue({
+      data: {
+        status: 'SUSPENDED',
+        pricePerBooth: 200,
+        boothCount: 3,
+        billingAnchorDay: 15,
+        invoice: null,
+      },
+      isLoading: false,
+    } as any);
+    render(<BillingWall />);
+    expect(screen.getByText(/assinatura suspensa/i)).toBeTruthy();
+    // Should NOT render "undefined"
+    expect(screen.queryByText(/undefined/)).toBeNull();
+  });
+
   it('renders nothing when data is loading', () => {
     vi.mocked(useBilling).mockReturnValue({ data: undefined, isLoading: true } as any);
     const { container } = render(<BillingWall />);
