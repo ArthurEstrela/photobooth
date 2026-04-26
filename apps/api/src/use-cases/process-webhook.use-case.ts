@@ -19,10 +19,32 @@ export class ProcessWebhookUseCase {
     if (action !== 'payment.updated') return;
 
     const externalId = data.id.toString();
+
+    // 1. Check SubscriptionInvoice first — subscription PIX are not in the Payment table
+    const invoice = await this.prisma.subscriptionInvoice.findFirst({
+      where: { externalId },
+    });
+    if (invoice) {
+      if (invoice.status === 'PAID') return; // idempotent
+      await this.prisma.$transaction([
+        this.prisma.subscriptionInvoice.update({
+          where: { id: invoice.id },
+          data: { status: 'PAID', paidAt: new Date() },
+        }),
+        this.prisma.tenant.update({
+          where: { id: invoice.tenantId },
+          data: { subscriptionStatus: 'ACTIVE' },
+        }),
+      ]);
+      this.logger.log(`Subscription invoice ${invoice.id} paid — tenant ${invoice.tenantId} reactivated`);
+      return;
+    }
+
+    // 2. Fall through to existing Payment table lookup (photobooth session payments)
     const payment = await this.prisma.payment.findFirst({
       where: {
         OR: [
-          { externalId: externalId },
+          { externalId },
           ...(process.env.NODE_ENV !== 'production' ? [{ id: externalId }] : []),
         ],
       },
@@ -40,14 +62,11 @@ export class ProcessWebhookUseCase {
       data: { status: PaymentStatus.APPROVED },
     });
 
-    // Digital upsell payments only need status update.
-    // DeliveryScreen polls GET /payments/:id and reacts when status = APPROVED.
     if (payment.paymentType === 'DIGITAL') {
       this.logger.log(`Digital payment ${payment.id} approved`);
       return;
     }
 
-    // Create PhotoSession so the totem can reference it for S3 sync and digital upsell
     const photoSession = await this.prisma.photoSession.create({
       data: {
         paymentId: payment.id,
@@ -63,15 +82,9 @@ export class ProcessWebhookUseCase {
       sessionId: photoSession.id,
     };
 
-    // Notify totem
     this.boothGateway.sendPaymentApproved(payment.boothId, eventPayload);
-    // Notify dashboard
     if (payment.booth) {
-      this.dashboardGateway.broadcastToTenant(
-        payment.booth.tenantId,
-        'payment_approved',
-        eventPayload,
-      );
+      this.dashboardGateway.broadcastToTenant(payment.booth.tenantId, 'payment_approved', eventPayload);
     } else {
       this.logger.warn(`Booth not found for payment ${payment.id} — dashboard not notified`);
     }
