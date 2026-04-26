@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { InvoiceStatus, SubStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothGateway } from '../gateways/booth.gateway';
 import { DashboardGateway } from '../gateways/dashboard.gateway';
@@ -25,15 +26,15 @@ export class ProcessWebhookUseCase {
       where: { externalId },
     });
     if (invoice) {
-      if (invoice.status === 'PAID') return; // idempotent
+      if (invoice.status === InvoiceStatus.PAID) return; // idempotent
       await this.prisma.$transaction([
         this.prisma.subscriptionInvoice.update({
           where: { id: invoice.id },
-          data: { status: 'PAID', paidAt: new Date() },
+          data: { status: InvoiceStatus.PAID, paidAt: new Date() },
         }),
         this.prisma.tenant.update({
           where: { id: invoice.tenantId },
-          data: { subscriptionStatus: 'ACTIVE' },
+          data: { subscriptionStatus: SubStatus.ACTIVE },
         }),
       ]);
       this.logger.log(`Subscription invoice ${invoice.id} paid — tenant ${invoice.tenantId} reactivated`);

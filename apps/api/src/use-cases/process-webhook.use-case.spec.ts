@@ -42,10 +42,18 @@ describe('ProcessWebhookUseCase — subscription', () => {
 
     await useCase.execute(SUBSCRIPTION_PAYLOAD);
 
-    expect(mockPrisma.$transaction).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.anything(), expect.anything()]),
+    expect(mockPrisma.subscriptionInvoice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'inv-1' },
+        data: expect.objectContaining({ paidAt: expect.any(Date) }),
+      }),
     );
-    // Booth gateway should NOT be called for subscription payments
+    expect(mockPrisma.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'tenant-1' },
+        data: expect.objectContaining({ subscriptionStatus: 'ACTIVE' }),
+      }),
+    );
     expect(mockBoothGateway.sendPaymentApproved).not.toHaveBeenCalled();
   });
 
