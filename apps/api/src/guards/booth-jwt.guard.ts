@@ -9,16 +9,18 @@ export class BoothJwtGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const auth = request.headers.authorization as string | undefined;
     if (!auth?.startsWith('Bearer ')) throw new UnauthorizedException();
+
+    let payload: any;
     try {
-      const payload = this.jwt.verify(auth.slice(7)) as any;
-      if (payload.role !== 'booth') throw new UnauthorizedException();
-      // If a :id route param exists, verify the token belongs to that booth
-      const params = request.params as Record<string, string>;
-      if (params?.id && params.id !== payload.sub) throw new UnauthorizedException();
-      request.user = payload;
-      return true;
+      payload = this.jwt.verify(auth.slice(7));
     } catch {
       throw new UnauthorizedException();
     }
+
+    if (payload.role !== 'booth') throw new UnauthorizedException();
+    const params = request.params as Record<string, string>;
+    if (params?.id && params.id !== payload.sub) throw new UnauthorizedException();
+    request.user = payload;
+    return true;
   }
 }
