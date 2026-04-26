@@ -146,6 +146,7 @@ export interface IBooth {
   activeEventId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  pairedAt: Date | null;
 }
 
 export interface IEvent {

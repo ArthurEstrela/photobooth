@@ -74,6 +74,9 @@ model Booth {
   activeEvent         Event?         @relation("BoothActiveEvent", fields: [activeEventId], references: [id])
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  pairingCode          String?   @unique
+  pairingCodeExpiresAt DateTime?
+  pairedAt             DateTime?
   payments            Payment[]
   photoSessions       PhotoSession[]
 }
