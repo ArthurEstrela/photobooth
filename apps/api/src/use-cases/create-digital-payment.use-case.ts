@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
 import { MpOAuthService } from '../auth/mp-oauth.service';
@@ -23,6 +23,15 @@ export class CreateDigitalPaymentUseCase {
       include: { event: true, booth: true },
     });
     if (!session) throw new NotFoundException('Session not found');
+
+    const tenantSub = await this.prisma.tenant.findUnique({
+      where: { id: session.booth.tenantId },
+      select: { subscriptionStatus: true },
+    });
+    if (tenantSub?.subscriptionStatus === 'SUSPENDED') {
+      throw new HttpException('Assinatura suspensa', HttpStatus.PAYMENT_REQUIRED);
+    }
+
     if (!session.event.digitalPrice) {
       throw new BadRequestException('Digital download is free for this event');
     }

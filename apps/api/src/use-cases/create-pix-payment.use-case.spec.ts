@@ -10,6 +10,7 @@ const mockPrisma = {
   booth: { findUnique: jest.fn() },
   event: { findUnique: jest.fn() },
   payment: { create: jest.fn() },
+  tenant: { findUnique: jest.fn() },
 };
 
 const mockAdapter = { createPixPayment: jest.fn() };
@@ -40,6 +41,7 @@ describe('CreatePixPaymentUseCase', () => {
     jest.clearAllMocks();
     mockPrisma.booth.findUnique.mockResolvedValue(BOOTH);
     mockPrisma.event.findUnique.mockResolvedValue(EVENT);
+    mockPrisma.tenant.findUnique.mockResolvedValue({ subscriptionStatus: 'ACTIVE' });
     mockAdapter.createPixPayment.mockResolvedValue(MP_RESPONSE);
     mockPrisma.payment.create.mockResolvedValue(PAYMENT);
     mockQueue.add.mockResolvedValue({});
@@ -69,6 +71,15 @@ describe('CreatePixPaymentUseCase', () => {
     await expect(
       useCase.execute({ boothId: 'booth-1', eventId: 'event-1', amount: 50, templateId: undefined }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it('throws 402 Payment Required when tenant subscription is SUSPENDED', async () => {
+    mockMpOAuth.refreshIfNeeded.mockResolvedValue('token');
+    mockPrisma.tenant.findUnique.mockResolvedValue({ subscriptionStatus: 'SUSPENDED' });
+
+    await expect(
+      useCase.execute({ boothId: 'booth-1', eventId: 'event-1', amount: 50, templateId: undefined }),
+    ).rejects.toMatchObject({ status: 402 });
   });
 
   it('falls back to MP_ACCESS_TOKEN env var in dev when no tenant token', async () => {

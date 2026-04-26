@@ -9,6 +9,7 @@ import { getQueueToken } from '@nestjs/bull';
 const mockPrisma = {
   photoSession: { findUnique: jest.fn() },
   payment: { create: jest.fn() },
+  tenant: { findUnique: jest.fn() },
 };
 const mockAdapter = { createPixPayment: jest.fn() };
 const mockMpOAuth = { refreshIfNeeded: jest.fn() };
@@ -42,6 +43,7 @@ describe('CreateDigitalPaymentUseCase', () => {
     useCase = module.get<CreateDigitalPaymentUseCase>(CreateDigitalPaymentUseCase);
     jest.clearAllMocks();
     mockPrisma.photoSession.findUnique.mockResolvedValue(SESSION);
+    mockPrisma.tenant.findUnique.mockResolvedValue({ subscriptionStatus: 'ACTIVE' });
     mockAdapter.createPixPayment.mockResolvedValue(MP_RESPONSE);
     mockPrisma.payment.create.mockResolvedValue(PAYMENT);
     mockQueue.add.mockResolvedValue({});
@@ -59,6 +61,12 @@ describe('CreateDigitalPaymentUseCase', () => {
 
     expect(mockMpOAuth.refreshIfNeeded).toHaveBeenCalledWith('tenant-1');
     expect(mockAdapter.createPixPayment).toHaveBeenCalledWith('APP_USR-tenant-token', expect.any(Object));
+  });
+
+  it('throws 402 Payment Required when tenant subscription is SUSPENDED', async () => {
+    mockPrisma.tenant.findUnique.mockResolvedValue({ subscriptionStatus: 'SUSPENDED' });
+
+    await expect(useCase.execute('session-1')).rejects.toMatchObject({ status: 402 });
   });
 
   it('throws BadRequestException when no MP token in production', async () => {

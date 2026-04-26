@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { CreatePixPaymentDTO, PixPaymentResponse } from '@packages/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
@@ -18,6 +18,14 @@ export class CreatePixPaymentUseCase {
   async execute(dto: CreatePixPaymentDTO): Promise<PixPaymentResponse> {
     const booth = await this.prisma.booth.findUnique({ where: { id: dto.boothId } });
     if (!booth) throw new Error('Booth not found');
+
+    const tenantSub = await this.prisma.tenant.findUnique({
+      where: { id: booth.tenantId },
+      select: { subscriptionStatus: true },
+    });
+    if (tenantSub?.subscriptionStatus === 'SUSPENDED') {
+      throw new HttpException('Assinatura suspensa', HttpStatus.PAYMENT_REQUIRED);
+    }
 
     const event = await this.prisma.event.findUnique({ where: { id: dto.eventId } });
     if (!event) throw new Error('Event not found');
