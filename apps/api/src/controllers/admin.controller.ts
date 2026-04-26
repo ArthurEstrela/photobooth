@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Param, Body, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubStatus } from '@prisma/client';
 
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -43,11 +44,18 @@ export class AdminController {
     const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new NotFoundException('Tenant not found');
 
+    if (body.subscriptionStatus !== undefined) {
+      const allowed = Object.values(SubStatus);
+      if (!allowed.includes(body.subscriptionStatus as SubStatus)) {
+        throw new BadRequestException(`Invalid subscriptionStatus. Allowed: ${allowed.join(', ')}`);
+      }
+    }
+
     return this.prisma.tenant.update({
       where: { id: tenantId },
       data: {
         ...(body.pricePerBooth !== undefined && { pricePerBooth: body.pricePerBooth }),
-        ...(body.subscriptionStatus !== undefined && { subscriptionStatus: body.subscriptionStatus as any }),
+        ...(body.subscriptionStatus !== undefined && { subscriptionStatus: body.subscriptionStatus as SubStatus }),
       },
       select: { id: true, subscriptionStatus: true, pricePerBooth: true },
     });
