@@ -44,6 +44,7 @@ export class BoothsController {
       offlineCredits: booth.offlineCredits,
       demoSessionsPerHour: booth.demoSessionsPerHour,
       cameraSound: booth.cameraSound,
+      suspended: booth.tenant.subscriptionStatus === 'SUSPENDED',
       branding: {
         logoUrl: booth.tenant.logoUrl,
         primaryColor: booth.tenant.primaryColor,
