@@ -262,6 +262,45 @@ export class TenantController {
     return { ok: true };
   }
 
+  @Get('billing')
+  async getBilling(@Request() req: AuthReq) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: req.user.tenantId },
+      select: {
+        subscriptionStatus: true,
+        pricePerBooth: true,
+        billingAnchorDay: true,
+        _count: { select: { booths: true } },
+      },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const pendingInvoice = await this.prisma.subscriptionInvoice.findFirst({
+      where: {
+        tenantId: req.user.tenantId,
+        status: { in: ['PENDING', 'OVERDUE'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      status: tenant.subscriptionStatus,
+      pricePerBooth: Number(tenant.pricePerBooth),
+      boothCount: tenant._count.booths,
+      billingAnchorDay: tenant.billingAnchorDay,
+      invoice: pendingInvoice
+        ? {
+            id: pendingInvoice.id,
+            amount: Number(pendingInvoice.amount),
+            dueDate: pendingInvoice.dueDate,
+            status: pendingInvoice.status,
+            qrCode: pendingInvoice.qrCode,
+            qrCodeBase64: pendingInvoice.qrCodeBase64,
+          }
+        : null,
+    };
+  }
+
   // ─── Templates ──────────────────────────────────────────────────────────────
 
   @Get('templates')

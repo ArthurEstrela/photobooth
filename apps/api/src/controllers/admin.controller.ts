@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, UseGuards, NotFoundException } from '@nestjs/common';
 import { AdminGuard } from '../auth/admin.guard';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -33,6 +33,24 @@ export class AdminController {
       mpConnected: !!t.mpAccessToken,
       boothCount: t._count.booths,
     }));
+  }
+
+  @Post('tenants/:tenantId/billing')
+  async updateTenantBilling(
+    @Param('tenantId') tenantId: string,
+    @Body() body: { pricePerBooth?: number; subscriptionStatus?: string },
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    return this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        ...(body.pricePerBooth !== undefined && { pricePerBooth: body.pricePerBooth }),
+        ...(body.subscriptionStatus !== undefined && { subscriptionStatus: body.subscriptionStatus as any }),
+      },
+      select: { id: true, subscriptionStatus: true, pricePerBooth: true },
+    });
   }
 
   @Post('impersonate/:tenantId')

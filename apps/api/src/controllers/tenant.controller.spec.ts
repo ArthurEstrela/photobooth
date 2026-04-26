@@ -14,6 +14,7 @@ const mockPrisma = {
   template: { findMany: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
   eventTemplate: { findMany: jest.fn(), deleteMany: jest.fn(), createMany: jest.fn() },
   event: { findFirst: jest.fn() },
+  subscriptionInvoice: { findFirst: jest.fn() },
 };
 
 const mockBoothGateway = {
@@ -159,6 +160,47 @@ describe('TenantController', () => {
       const result = await controller.disconnectMp(TENANT_USER as any);
       expect(mockMpOAuth.disconnect).toHaveBeenCalledWith('tenant-1');
       expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe('GET /tenant/billing', () => {
+    it('returns ACTIVE status with null invoice when no pending invoice', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        subscriptionStatus: 'ACTIVE',
+        pricePerBooth: 200,
+        billingAnchorDay: 15,
+        _count: { booths: 2 },
+      });
+      mockPrisma.subscriptionInvoice.findFirst.mockResolvedValue(null);
+
+      const result = await controller.getBilling(TENANT_USER as any);
+
+      expect(result.status).toBe('ACTIVE');
+      expect(result.invoice).toBeNull();
+      expect(result.boothCount).toBe(2);
+    });
+
+    it('returns SUSPENDED status with invoice when PENDING invoice exists', async () => {
+      mockPrisma.tenant.findUnique.mockResolvedValue({
+        subscriptionStatus: 'SUSPENDED',
+        pricePerBooth: 200,
+        billingAnchorDay: 15,
+        _count: { booths: 3 },
+      });
+      mockPrisma.subscriptionInvoice.findFirst.mockResolvedValue({
+        id: 'inv-1',
+        amount: { valueOf: () => 600 },
+        dueDate: new Date('2026-05-22'),
+        status: 'OVERDUE',
+        qrCode: 'qr',
+        qrCodeBase64: 'b64',
+      });
+
+      const result = await controller.getBilling(TENANT_USER as any);
+
+      expect(result.status).toBe('SUSPENDED');
+      expect(result.invoice).not.toBeNull();
+      expect(result.invoice!.amount).toBe(600);
     });
   });
 });
