@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { CreatePixPaymentDTO, PixPaymentResponse } from '@packages/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
@@ -23,7 +23,8 @@ export class CreatePixPaymentUseCase {
       where: { id: booth.tenantId },
       select: { subscriptionStatus: true },
     });
-    if (tenantSub?.subscriptionStatus === 'SUSPENDED') {
+    if (!tenantSub) throw new NotFoundException('Tenant not found');
+    if (tenantSub.subscriptionStatus === 'SUSPENDED') {
       throw new HttpException('Assinatura suspensa', HttpStatus.PAYMENT_REQUIRED);
     }
 

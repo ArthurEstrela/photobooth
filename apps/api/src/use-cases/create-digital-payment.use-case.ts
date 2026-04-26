@@ -28,7 +28,8 @@ export class CreateDigitalPaymentUseCase {
       where: { id: session.booth.tenantId },
       select: { subscriptionStatus: true },
     });
-    if (tenantSub?.subscriptionStatus === 'SUSPENDED') {
+    if (!tenantSub) throw new NotFoundException('Tenant not found');
+    if (tenantSub.subscriptionStatus === 'SUSPENDED') {
       throw new HttpException('Assinatura suspensa', HttpStatus.PAYMENT_REQUIRED);
     }
 
