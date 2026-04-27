@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { X, Camera, Printer, CheckCircle } from 'lucide-react';
 import { Socket } from 'socket.io-client';
 import { DeviceConfig } from '../hooks/useDeviceConfig';
 
 interface Props {
   boothId: string;
+  boothToken: string;
   socketRef: React.MutableRefObject<Socket | null>;
   deviceConfig: DeviceConfig;
   setDeviceConfig: (partial: Partial<DeviceConfig>) => void;
@@ -13,6 +15,7 @@ interface Props {
 
 export const MaintenanceScreen: React.FC<Props> = ({
   boothId,
+  boothToken,
   socketRef,
   deviceConfig,
   setDeviceConfig,
@@ -23,6 +26,7 @@ export const MaintenanceScreen: React.FC<Props> = ({
   const [selectedCamera, setSelectedCamera] = useState(deviceConfig.selectedCamera ?? '');
   const [selectedPrinter, setSelectedPrinter] = useState(deviceConfig.selectedPrinter ?? '');
   const [saved, setSaved] = useState(false);
+  const [unpairing, setUnpairing] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -72,6 +76,21 @@ export const MaintenanceScreen: React.FC<Props> = ({
     });
     setSaved(true);
     setTimeout(onClose, 1200);
+  };
+
+  const handleUnpair = async () => {
+    setUnpairing(true);
+    const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+    try {
+      await axios.post(`${apiUrl}/booths/unpair`, {}, {
+        headers: { Authorization: `Bearer ${boothToken}` },
+      });
+    } catch {
+      // fire-and-forget — proceed with local cleanup regardless
+    }
+    const totemAPI = (window as any).totemAPI;
+    await totemAPI?.clearCredentials?.();
+    window.location.reload();
   };
 
   return (
@@ -154,6 +173,15 @@ export const MaintenanceScreen: React.FC<Props> = ({
           ) : (
             'Salvar e Voltar'
           )}
+        </button>
+
+        {/* Unpair */}
+        <button
+          onClick={handleUnpair}
+          disabled={unpairing}
+          className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 disabled:opacity-40 text-red-400 rounded-2xl font-semibold text-sm transition-colors border border-red-500/20"
+        >
+          {unpairing ? 'Despareando...' : 'Desparear Cabine'}
         </button>
       </div>
     </div>
