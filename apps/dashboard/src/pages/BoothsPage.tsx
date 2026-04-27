@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, Settings2, Link2, Link2Off } from 'lucide-react';
+import { Plus, Settings2, Link2, Link2Off, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Badge, Button, Drawer, Input, Select, Modal, Skeleton, EmptyState } from '../components/ui';
-import { useBooths, useCreateBooth, useSetBoothEvent, useUpdateBoothDevices } from '../hooks/api/useBooths';
+import { useBooths, useCreateBooth, useSetBoothEvent, useUpdateBoothDevices, useDeleteBooth } from '../hooks/api/useBooths';
 import { useEvents } from '../hooks/api/useEvents';
 import { DeviceStatusEvent, IBoothWithStatus } from '@packages/shared';
 import { usePairingCode } from '../hooks/api/usePairingCode';
@@ -29,6 +29,9 @@ export const BoothsPage: React.FC = () => {
   const createBooth = useCreateBooth();
   const setBoothEvent = useSetBoothEvent();
   const updateDevices = useUpdateBoothDevices();
+
+  const deleteBooth = useDeleteBooth();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const generatePairingCode = usePairingCode();
   const [pairingBooth, setPairingBooth] = useState<IBoothWithStatus | null>(null);
@@ -305,8 +308,47 @@ export const BoothsPage: React.FC = () => {
               </div>
 
             </div>
+
+            {/* Delete */}
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={() => setDeleteConfirmId(drawerBooth.id)}
+                className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 font-medium transition-colors"
+              >
+                <Trash2 size={14} /> Excluir cabine
+              </button>
+            </div>
+
           </div>
         </Drawer>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirmId && (
+        <Modal open onClose={() => setDeleteConfirmId(null)} title="Excluir cabine">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Tem certeza que deseja excluir esta cabine? Todos os pagamentos e sessões associados serão removidos permanentemente.
+            </p>
+            <div className="flex gap-3 justify-end pt-2">
+              <Button variant="ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</Button>
+              <Button
+                variant="danger"
+                loading={deleteBooth.isPending}
+                onClick={() => {
+                  deleteBooth.mutate(deleteConfirmId, {
+                    onSuccess: () => {
+                      setDeleteConfirmId(null);
+                      setDrawerBooth(null);
+                    },
+                  });
+                }}
+              >
+                Excluir
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {pairingBooth && pairingData && (

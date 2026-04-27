@@ -106,6 +106,22 @@ export class TenantController {
     });
   }
 
+  @Delete('booths/:boothId')
+  async deleteBooth(@Param('boothId') boothId: string, @Request() req: AuthReq) {
+    const booth = await this.prisma.booth.findFirst({
+      where: { id: boothId, tenantId: req.user.tenantId },
+    });
+    if (!booth) throw new NotFoundException('Booth not found');
+
+    await this.prisma.$transaction([
+      this.prisma.photoSession.deleteMany({ where: { boothId } }),
+      this.prisma.payment.deleteMany({ where: { boothId } }),
+      this.prisma.booth.delete({ where: { id: boothId } }),
+    ]);
+
+    return { ok: true };
+  }
+
   @Get('photos')
   async getPhotos(
     @Request() req: AuthReq,

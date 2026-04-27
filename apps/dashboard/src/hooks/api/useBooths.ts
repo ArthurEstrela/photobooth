@@ -33,6 +33,16 @@ export const useSetBoothEvent = () => {
   });
 };
 
+export const useDeleteBooth = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (boothId: string) => {
+      await api.delete(`/tenant/booths/${boothId}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['booths'] }),
+  });
+};
+
 export const useUpdateBoothDevices = () => {
   const queryClient = useQueryClient();
   return useMutation({
