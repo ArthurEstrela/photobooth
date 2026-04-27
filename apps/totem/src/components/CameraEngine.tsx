@@ -221,14 +221,6 @@ export const CameraEngine: React.FC<Props> = ({
         className="w-full h-full object-cover transform scale-x-[-1]"
       />
 
-      {overlayUrl && (
-        <img
-          src={overlayUrl}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          alt=""
-        />
-      )}
-
       <div className="absolute top-6 left-1/2 -translate-x-1/2 flex gap-2">
         {Array.from({ length: photoCount }).map((_, i) => (
           <div
