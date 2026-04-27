@@ -38,12 +38,6 @@ export class BoothsController {
     return this.pairBooth.execute(body.code.toUpperCase().trim());
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/pairing-code')
-  async generateCode(@Param('id') id: string, @Request() req: any) {
-    return this.generatePairingCode.execute(id, req.user.tenantId);
-  }
-
   @UseGuards(BoothJwtGuard)
   @Post('unpair')
   async unpair(@Request() req: BoothReq) {
@@ -54,6 +48,12 @@ export class BoothsController {
     });
     this.dashboardGateway.broadcastToTenant(req.user.tenantId, 'booth_unpaired', { boothId });
     return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/pairing-code')
+  async generateCode(@Param('id') id: string, @Request() req: any) {
+    return this.generatePairingCode.execute(id, req.user.tenantId);
   }
 
   @UseGuards(BoothJwtGuard)
