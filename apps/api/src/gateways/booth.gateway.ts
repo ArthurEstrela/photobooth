@@ -11,6 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoothStateUpdate, HardwareUpdateEvent, DeviceHeartbeatEvent, DeviceStatusEvent } from '@packages/shared';
 import { DashboardGateway } from './dashboard.gateway';
@@ -32,41 +33,45 @@ export class BoothGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly prisma: PrismaService,
     private readonly dashboardGateway: DashboardGateway,
+    private readonly jwt: JwtService,
   ) {}
 
   async handleConnection(client: Socket) {
     try {
-      const boothId = client.handshake.query['boothId'] as string;
       const authHeader = client.handshake.headers['authorization'];
       const token = authHeader?.startsWith('Bearer ')
         ? authHeader.slice(7)
         : undefined;
 
-      if (!boothId || !token) {
+      if (!token) {
         client.disconnect();
         return;
       }
 
-      const booth = await this.prisma.booth.findFirst({
-        where: { id: boothId, token },
-      });
-
-      if (!booth) {
-        this.logger.warn(`Connection rejected for booth ${boothId} — invalid token`);
+      // Validate booth JWT (new pairing flow)
+      let boothId: string;
+      let tenantId: string;
+      try {
+        const payload = this.jwt.verify(token) as any;
+        if (payload.role !== 'booth') throw new Error('not a booth token');
+        boothId = payload.sub;
+        tenantId = payload.tenantId;
+      } catch {
+        this.logger.warn(`Connection rejected — invalid booth JWT`);
         client.disconnect();
         return;
       }
 
-      this.connectedBooths.set(boothId, { socketId: client.id, tenantId: booth.tenantId });
+      this.connectedBooths.set(boothId, { socketId: client.id, tenantId });
       client.data['boothId'] = boothId;
-      this.dashboardGateway.broadcastToTenant(booth.tenantId, 'booth_status', {
+      this.dashboardGateway.broadcastToTenant(tenantId, 'booth_status', {
         boothId,
         online: true,
       });
       this.logger.log(`Booth connected: ${boothId}`);
 
       // Sync: push current DB config to totem on reconnect so it starts with authoritative state
-      const dbBooth = booth;
+      const dbBooth = await this.prisma.booth.findUnique({ where: { id: boothId } });
       if (dbBooth && (dbBooth.selectedCamera || dbBooth.selectedPrinter)) {
         this.sendForceHardwareUpdate(boothId, {
           selectedCamera: dbBooth.selectedCamera ?? null,
