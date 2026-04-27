@@ -31,6 +31,9 @@ import { CheckOverdueInvoicesUseCase } from './use-cases/check-overdue-invoices.
 import { SubscriptionBillingProcessor } from './workers/subscription-billing.processor';
 import { S3StorageAdapter } from './adapters/storage/s3.adapter';
 import { CryptoModule } from './crypto/crypto.module';
+import { BoothJwtGuard } from './guards/booth-jwt.guard';
+import { GeneratePairingCodeUseCase } from './use-cases/generate-pairing-code.use-case';
+import { PairBoothUseCase } from './use-cases/pair-booth.use-case';
 
 @Module({
   imports: [
@@ -82,6 +85,9 @@ import { CryptoModule } from './crypto/crypto.module';
     CheckOverdueInvoicesUseCase,
     SubscriptionBillingProcessor,
     S3StorageAdapter,
+    BoothJwtGuard,
+    GeneratePairingCodeUseCase,
+    PairBoothUseCase,
   ],
 })
 export class AppModule {}
