@@ -108,7 +108,7 @@ export const PaymentScreen: React.FC<PaymentScreenProps> = ({
           {import.meta.env.DEV && (
             <button
               onClick={() => {
-                axios.post(import.meta.env.VITE_API_URL + '/payments/webhook', {
+                axios.post((import.meta.env.VITE_API_URL ?? 'http://localhost:3000') + '/payments/webhook', {
                   action: 'payment.updated',
                   data: { id: payment.paymentId },
                 }).catch(console.error);
