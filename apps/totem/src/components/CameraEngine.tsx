@@ -2,6 +2,15 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useWebcam } from '../hooks/useWebcam';
 import { CountdownOverlay } from './CountdownOverlay';
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
+function overlayFetchUrl(url: string): string {
+  if (url.includes('.amazonaws.com') || url.includes('.cloudfront.net')) {
+    return `${API_URL}/photos/proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 interface Props {
   overlayUrl?: string;
   sessionId: string;
@@ -82,18 +91,25 @@ export const CameraEngine: React.FC<Props> = ({
         const stripCanvas = document.createElement('canvas');
         const ctx = stripCanvas.getContext('2d')!;
 
-        const applyOverlay = (): Promise<void> =>
-          new Promise((done) => {
-            if (!overlayUrl) { done(); return; }
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-              ctx.drawImage(img, 0, 0, stripCanvas.width, stripCanvas.height);
-              done();
-            };
-            img.onerror = () => done();
-            img.src = overlayUrl;
-          });
+        const applyOverlay = (): Promise<void> => {
+          if (!overlayUrl) return Promise.resolve();
+          return fetch(overlayFetchUrl(overlayUrl))
+            .then((r) => r.blob())
+            .then((blob) => {
+              const blobUrl = URL.createObjectURL(blob);
+              return new Promise<void>((done) => {
+                const img = new Image();
+                img.onload = () => {
+                  ctx.drawImage(img, 0, 0, stripCanvas.width, stripCanvas.height);
+                  URL.revokeObjectURL(blobUrl);
+                  done();
+                };
+                img.onerror = () => { URL.revokeObjectURL(blobUrl); done(); };
+                img.src = blobUrl;
+              });
+            })
+            .catch(() => Promise.resolve()); // skip overlay on any network error
+        };
 
         const finish = () =>
           applyOverlay().then(() =>

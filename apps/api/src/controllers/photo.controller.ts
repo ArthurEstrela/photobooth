@@ -1,6 +1,7 @@
 // apps/api/src/controllers/photo.controller.ts
 
-import { Controller, Post, Get, Body, Param, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, Res, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Response } from 'express';
 import { SyncPhotoUseCase } from '../use-cases/sync-photo.use-case';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +26,28 @@ export class PhotoController {
         process.env.NODE_ENV !== 'production' ? detail : 'Photo sync failed',
       );
     }
+  }
+
+  @Get('proxy')
+  async proxyImage(
+    @Query('url') url: string,
+    @Res() res: Response,
+  ) {
+    if (!url || !url.startsWith('https://') || (!url.includes('.amazonaws.com') && !url.includes('.cloudfront.net'))) {
+      throw new BadRequestException('Invalid URL');
+    }
+    let response: globalThis.Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new NotFoundException('Could not fetch image');
+    }
+    if (!response.ok) throw new NotFoundException('Image not found');
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentType = response.headers.get('content-type') ?? 'image/png';
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.send(buffer);
   }
 
   @Get('public/:sessionId')
