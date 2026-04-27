@@ -1,39 +1,69 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
-  Headers,
-  UnauthorizedException,
+  Body,
+  Request,
+  UseGuards,
   NotFoundException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { DashboardGateway } from '../gateways/dashboard.gateway';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { BoothJwtGuard } from '../guards/booth-jwt.guard';
+import { GeneratePairingCodeUseCase } from '../use-cases/generate-pairing-code.use-case';
+import { PairBoothUseCase } from '../use-cases/pair-booth.use-case';
 import { BoothConfigDto, BoothEventResponseDto, OfflineMode } from '@packages/shared';
+
+interface BoothReq {
+  user: { sub: string; tenantId: string; role: string };
+}
 
 @Controller('booths')
 export class BoothsController {
   private readonly logger = new Logger(BoothsController.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dashboardGateway: DashboardGateway,
+    private readonly generatePairingCode: GeneratePairingCodeUseCase,
+    private readonly pairBooth: PairBoothUseCase,
+  ) {}
 
-  private extractToken(auth: string | undefined): string | undefined {
-    return auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+  @Post('pair')
+  async pair(@Body() body: { code: string }) {
+    return this.pairBooth.execute(body.code.toUpperCase().trim());
   }
 
-  @Get(':id/config')
-  async getConfig(
-    @Param('id') id: string,
-    @Headers('authorization') auth: string,
-  ): Promise<BoothConfigDto> {
-    const token = this.extractToken(auth);
-    if (!token) throw new UnauthorizedException();
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/pairing-code')
+  async generateCode(@Param('id') id: string, @Request() req: any) {
+    return this.generatePairingCode.execute(id, req.user.tenantId);
+  }
 
+  @UseGuards(BoothJwtGuard)
+  @Post('unpair')
+  async unpair(@Request() req: BoothReq) {
+    const boothId = req.user.sub;
+    await this.prisma.booth.update({
+      where: { id: boothId },
+      data: { pairedAt: null },
+    });
+    this.dashboardGateway.broadcastToTenant(req.user.tenantId, 'booth_unpaired', { boothId });
+    return { ok: true };
+  }
+
+  @UseGuards(BoothJwtGuard)
+  @Get(':id/config')
+  async getConfig(@Param('id') id: string): Promise<BoothConfigDto> {
     const booth = await this.prisma.booth.findFirst({
-      where: { id, token },
+      where: { id },
       include: { tenant: true },
     });
-    if (!booth) throw new UnauthorizedException();
+    if (!booth) throw new NotFoundException();
 
     if (!Object.values(OfflineMode).includes(booth.offlineMode as OfflineMode)) {
       throw new InternalServerErrorException(`Unknown offlineMode: ${booth.offlineMode}`);
@@ -58,16 +88,11 @@ export class BoothsController {
     };
   }
 
+  @UseGuards(BoothJwtGuard)
   @Get(':id/event')
-  async getBoothEvent(
-    @Param('id') id: string,
-    @Headers('authorization') auth: string,
-  ): Promise<BoothEventResponseDto> {
-    const token = this.extractToken(auth);
-    if (!token) throw new UnauthorizedException();
-
-    const booth = await this.prisma.booth.findFirst({ where: { id, token } });
-    if (!booth) throw new UnauthorizedException();
+  async getBoothEvent(@Param('id') id: string): Promise<BoothEventResponseDto> {
+    const booth = await this.prisma.booth.findFirst({ where: { id } });
+    if (!booth) throw new NotFoundException();
     if (!booth.activeEventId) throw new NotFoundException('No active event configured for this booth');
 
     const event = await this.prisma.event.findUnique({
@@ -96,7 +121,6 @@ export class BoothsController {
         backgroundUrl: event.backgroundUrl,
         maxTemplates: event.maxTemplates,
       },
-      // Only show templates that match the event's photo count (or have no count restriction)
       templates: event.eventTemplates
         .filter((et) => !et.template.photoCount || et.template.photoCount === event.photoCount)
         .map((et) => ({
