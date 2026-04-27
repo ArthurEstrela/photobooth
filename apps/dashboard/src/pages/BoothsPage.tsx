@@ -304,22 +304,6 @@ export const BoothsPage: React.FC = () => {
                 </Button>
               </div>
 
-              {/* ── Credenciais ───────────────────────────────── */}
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <p className="text-sm font-semibold text-gray-700">Credenciais para o Totem</p>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">ID da Cabine (VITE_BOOTH_ID)</p>
-                  <code className="text-xs break-all bg-gray-50 p-1 block rounded border border-gray-200 select-all">
-                    {drawerBooth.id}
-                  </code>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Token (VITE_BOOTH_TOKEN)</p>
-                  <code className="text-xs break-all bg-gray-50 p-1 block rounded border border-gray-200 select-all">
-                    {drawerBooth.token}
-                  </code>
-                </div>
-              </div>
             </div>
           </div>
         </Drawer>
