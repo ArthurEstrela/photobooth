@@ -222,7 +222,6 @@ export interface BoothEventResponseDto {
     id: string;
     name: string;
     price: number;
-    photoCount: 1 | 2 | 4;
     digitalPrice: number | null;
     backgroundUrl: string | null;
     maxTemplates: number;

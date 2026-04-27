@@ -7,14 +7,8 @@ function formatCurrency(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-const PHOTO_COUNT_OPTIONS = [
-  { value: '1', label: '1 foto' },
-  { value: '2', label: '2 fotos (tira)' },
-  { value: '4', label: '4 fotos (grade)' },
-];
-
 const DEFAULT_FORM = {
-  name: '', price: '', photoCount: '1', digitalPrice: '', maxTemplates: '5',
+  name: '', price: '', digitalPrice: '', maxTemplates: '5',
 };
 
 export const EventsPage: React.FC = () => {
@@ -33,7 +27,6 @@ export const EventsPage: React.FC = () => {
     setForm({
       name: ev.name,
       price: String(ev.price),
-      photoCount: String(ev.photoCount),
       digitalPrice: ev.digitalPrice != null ? String(ev.digitalPrice) : '',
       maxTemplates: String(ev.maxTemplates ?? 5),
     });
@@ -50,7 +43,6 @@ export const EventsPage: React.FC = () => {
     const payload = {
       name: form.name,
       price: parseFloat(form.price),
-      photoCount: parseInt(form.photoCount) as 1 | 2 | 4,
       digitalPrice: form.digitalPrice ? parseFloat(form.digitalPrice) : null,
       maxTemplates: parseInt(form.maxTemplates),
     };
@@ -89,7 +81,7 @@ export const EventsPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Nome', 'Preço', 'Fotos', 'Digital', 'Molduras', 'Ações'].map((h) => (
+                  {['Nome', 'Preço', 'Digital', 'Molduras', 'Ações'].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       {h}
                     </th>
@@ -101,7 +93,6 @@ export const EventsPage: React.FC = () => {
                   <tr key={ev.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{ev.name}</td>
                     <td className="px-4 py-3 text-gray-600">{formatCurrency(Number(ev.price))}</td>
-                    <td className="px-4 py-3 text-gray-600">{ev.photoCount}</td>
                     <td className="px-4 py-3">
                       {ev.digitalPrice != null
                         ? <Badge variant="primary">{formatCurrency(Number(ev.digitalPrice))}</Badge>
@@ -128,7 +119,7 @@ export const EventsPage: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-semibold text-gray-900">{ev.name}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">{formatCurrency(Number(ev.price))} · {ev.photoCount} foto(s)</p>
+                    <p className="text-sm text-gray-500 mt-0.5">{formatCurrency(Number(ev.price))}</p>
                   </div>
                   {ev.digitalPrice != null
                     ? <Badge variant="primary">Digital {formatCurrency(Number(ev.digitalPrice))}</Badge>
@@ -149,15 +140,7 @@ export const EventsPage: React.FC = () => {
       <Modal open={modalOpen} onClose={closeModal} title={editEvent ? 'Editar Evento' : 'Criar Evento'} maxWidth="md">
         <div className="space-y-4">
           <Input label="Nome do evento" value={form.name} onChange={f('name')} placeholder="Ex: Casamento Silva" />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Preço por sessão (R$)" type="number" min="0" step="0.01" value={form.price} onChange={f('price')} />
-            <Select
-              label="Fotos por sessão"
-              options={PHOTO_COUNT_OPTIONS}
-              value={form.photoCount}
-              onChange={f('photoCount')}
-            />
-          </div>
+          <Input label="Preço por sessão (R$)" type="number" min="0" step="0.01" value={form.price} onChange={f('price')} />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Preço do digital (R$)"

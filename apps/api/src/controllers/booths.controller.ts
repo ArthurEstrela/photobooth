@@ -106,23 +106,16 @@ export class BoothsController {
     });
     if (!event) throw new NotFoundException('Active event not found');
 
-    const validPhotoCounts = [1, 2, 4] as const;
-    if (!validPhotoCounts.includes(event.photoCount as 1 | 2 | 4)) {
-      throw new InternalServerErrorException(`Invalid photoCount: ${event.photoCount}`);
-    }
-
     return {
       event: {
         id: event.id,
         name: event.name,
         price: event.price.toNumber(),
-        photoCount: event.photoCount as 1 | 2 | 4,
         digitalPrice: event.digitalPrice?.toNumber() ?? null,
         backgroundUrl: event.backgroundUrl,
         maxTemplates: event.maxTemplates,
       },
       templates: event.eventTemplates
-        .filter((et) => !et.template.photoCount || et.template.photoCount === event.photoCount)
         .map((et) => ({
           id: et.template.id,
           name: et.template.name,

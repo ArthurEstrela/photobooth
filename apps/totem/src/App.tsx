@@ -150,7 +150,7 @@ export default function App() {
         <CameraEngine
           overlayUrl={selectedTemplate?.overlayUrl}
           sessionId={machine.sessionId ?? 'session'}
-          photoCount={(selectedTemplate?.photoCount ?? event?.photoCount ?? 1) as 1 | 2 | 4}
+          photoCount={(selectedTemplate?.photoCount ?? 1) as 1 | 2 | 4}
           layout={selectedTemplate?.layout}
           cameraSound={config?.cameraSound ?? true}
           onProcessing={() => machine.setProcessing()}
@@ -159,7 +159,7 @@ export default function App() {
       )}
 
       {machine.state === BoothState.PROCESSING && (
-        <ProcessingScreen photoCount={event?.photoCount ?? 1} />
+        <ProcessingScreen photoCount={selectedTemplate?.photoCount ?? 1} />
       )}
 
       {machine.state === BoothState.DELIVERY && (

@@ -17,7 +17,6 @@ export const useCreateEvent = () => {
     mutationFn: async (body: {
       name: string;
       price: number;
-      photoCount: number;
       digitalPrice?: number | null;
       backgroundUrl?: string | null;
       maxTemplates?: number;
@@ -36,7 +35,6 @@ export const useUpdateEvent = () => {
       id: string;
       name: string;
       price: number;
-      photoCount: number;
       digitalPrice?: number | null;
       backgroundUrl?: string | null;
       maxTemplates?: number;
