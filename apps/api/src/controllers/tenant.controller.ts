@@ -96,7 +96,7 @@ export class TenantController {
     @Request() req: AuthReq,
   ) {
     const { tenantId } = req.user;
-    return this.prisma.booth.create({
+    const booth = await this.prisma.booth.create({
       data: {
         name: body.name,
         token: randomUUID(),
@@ -104,6 +104,15 @@ export class TenantController {
         offlineMode: body.offlineMode ?? 'BLOCK',
       },
     });
+
+    // Update peak booth count: only increase, never decrease
+    const newCount = await this.prisma.booth.count({ where: { tenantId } });
+    await this.prisma.tenant.updateMany({
+      where: { id: tenantId, peakBoothCount: { lt: newCount } },
+      data: { peakBoothCount: newCount },
+    });
+
+    return booth;
   }
 
   @Delete('booths/:boothId')

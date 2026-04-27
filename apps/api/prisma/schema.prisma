@@ -47,6 +47,7 @@ model Tenant {
   subscriptionStatus   SubStatus @default(ACTIVE)
   pricePerBooth        Decimal   @default(200)
   billingAnchorDay     Int       @default(1)
+  peakBoothCount       Int       @default(0)
   subscriptionInvoices SubscriptionInvoice[]
   planId           String?
   plan             Plan?      @relation(fields: [planId], references: [id])

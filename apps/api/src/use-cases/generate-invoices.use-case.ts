@@ -33,7 +33,9 @@ export class GenerateInvoicesUseCase {
       });
       if (existing) continue;
 
-      const boothCount = tenant._count.booths;
+      // Use peak booth count so tenants can't dodge billing by deleting booths before billing date
+      const currentBoothCount = tenant._count.booths;
+      const boothCount = Math.max((tenant as any).peakBoothCount ?? 0, currentBoothCount);
       if (boothCount === 0) continue;
 
       const amount = Number(tenant.pricePerBooth) * boothCount;
@@ -66,7 +68,13 @@ export class GenerateInvoicesUseCase {
           },
         });
 
-        this.logger.log(`Invoice generated for tenant ${tenant.id}: R$${amount}`);
+        // Reset peak to current count after billing so next month starts fresh
+        await this.prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { peakBoothCount: currentBoothCount },
+        });
+
+        this.logger.log(`Invoice generated for tenant ${tenant.id}: R$${amount} (peak: ${boothCount} booths)`);
       } catch (err: any) {
         this.logger.error(`Failed to generate PIX for tenant ${tenant.id}: ${err?.message}`);
       }

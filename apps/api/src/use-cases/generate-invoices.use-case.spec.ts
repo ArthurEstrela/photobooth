@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MercadoPagoAdapter } from '../adapters/mercadopago.adapter';
 
 const mockPrisma = {
-  tenant: { findMany: jest.fn() },
+  tenant: { findMany: jest.fn(), update: jest.fn() },
   subscriptionInvoice: {
     findFirst: jest.fn(),
     create: jest.fn(),
@@ -17,6 +17,7 @@ const mockMpAdapter = { createPixPayment: jest.fn() };
 const TENANT = {
   id: 'tenant-1',
   pricePerBooth: { valueOf: () => 200, toNumber: () => 200, toString: () => '200' },
+  peakBoothCount: 5, // peak was 5 even though current count is 3
   _count: { booths: 3 },
 };
 
@@ -49,24 +50,30 @@ describe('GenerateInvoicesUseCase', () => {
 
   it('generates invoice and PIX for tenant with booths', async () => {
     mockPrisma.tenant.findMany.mockResolvedValue([TENANT]);
-    mockPrisma.subscriptionInvoice.findFirst.mockResolvedValue(null); // no existing invoice
+    mockPrisma.subscriptionInvoice.findFirst.mockResolvedValue(null);
     mockPrisma.subscriptionInvoice.create.mockResolvedValue({ id: 'inv-1' });
     mockMpAdapter.createPixPayment.mockResolvedValue(MP_RESPONSE);
     mockPrisma.subscriptionInvoice.update.mockResolvedValue({});
+    mockPrisma.tenant.update.mockResolvedValue({});
 
     await useCase.execute();
 
+    // Uses peak (5) not current count (3) — R$200 × 5 = R$1000
     expect(mockPrisma.subscriptionInvoice.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ amount: 600 }) }),
+      expect.objectContaining({ data: expect.objectContaining({ amount: 1000 }) }),
     );
     expect(mockMpAdapter.createPixPayment).toHaveBeenCalledWith(
       'test-mp-token',
-      expect.objectContaining({ amount: 600, description: expect.stringContaining('3 cabine') }),
+      expect.objectContaining({ amount: 1000, description: expect.stringContaining('5 cabine') }),
     );
     expect(mockPrisma.subscriptionInvoice.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ externalId: '99999', qrCode: 'qr-string' }),
       }),
+    );
+    // Resets peak to current count after billing
+    expect(mockPrisma.tenant.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'tenant-1' }, data: { peakBoothCount: 3 } }),
     );
   });
 
@@ -80,7 +87,7 @@ describe('GenerateInvoicesUseCase', () => {
   });
 
   it('skips tenant with 0 booths', async () => {
-    const tenantNoBooths = { ...TENANT, _count: { booths: 0 } };
+    const tenantNoBooths = { ...TENANT, peakBoothCount: 0, _count: { booths: 0 } };
     mockPrisma.tenant.findMany.mockResolvedValue([tenantNoBooths]);
     mockPrisma.subscriptionInvoice.findFirst.mockResolvedValue(null);
 
