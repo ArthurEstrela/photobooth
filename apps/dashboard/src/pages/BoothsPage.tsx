@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, Badge, Button, Drawer, Input, Select, Modal, Skeleton, EmptyState } from '../components/ui';
 import { useBooths, useCreateBooth, useSetBoothEvent, useUpdateBoothDevices } from '../hooks/api/useBooths';
 import { useEvents } from '../hooks/api/useEvents';
-import { DeviceStatusEvent } from '@packages/shared';
+import { DeviceStatusEvent, IBoothWithStatus } from '@packages/shared';
 import { usePairingCode } from '../hooks/api/usePairingCode';
 import { PairingModal } from '../components/PairingModal';
 
@@ -31,10 +31,10 @@ export const BoothsPage: React.FC = () => {
   const updateDevices = useUpdateBoothDevices();
 
   const generatePairingCode = usePairingCode();
-  const [pairingBooth, setPairingBooth] = useState<any | null>(null);
+  const [pairingBooth, setPairingBooth] = useState<IBoothWithStatus | null>(null);
   const [pairingData, setPairingData] = useState<{ code: string; expiresAt: string } | null>(null);
 
-  const [drawerBooth, setDrawerBooth] = useState<any | null>(null);
+  const [drawerBooth, setDrawerBooth] = useState<IBoothWithStatus | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -45,7 +45,7 @@ export const BoothsPage: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [pinSaved, setPinSaved] = useState(false);
 
-  const openDrawer = (booth: any) => {
+  const openDrawer = (booth: IBoothWithStatus) => {
     setDrawerBooth(booth);
     setDevApplied(false);
     setPinSaved(false);
@@ -327,11 +327,11 @@ export const BoothsPage: React.FC = () => {
 
       {pairingBooth && pairingData && (
         <PairingModal
-          boothId={pairingBooth.id}
           code={pairingData.code}
           expiresAt={pairingData.expiresAt}
           onClose={() => { setPairingBooth(null); setPairingData(null); generatePairingCode.reset(); }}
           onRegenerate={() => {
+            generatePairingCode.reset();
             generatePairingCode.mutate(pairingBooth.id, {
               onSuccess: (data) => setPairingData(data),
             });

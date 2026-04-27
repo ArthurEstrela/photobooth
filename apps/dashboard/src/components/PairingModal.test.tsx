@@ -13,7 +13,6 @@ describe('PairingModal', () => {
   it('renders the pairing code in large text', () => {
     render(
       <PairingModal
-        boothId="b-1"
         code="AB3K7X"
         expiresAt={expiresAt}
         onClose={onClose}
@@ -26,7 +25,6 @@ describe('PairingModal', () => {
   it('renders a QR code with the pairing code as value', () => {
     render(
       <PairingModal
-        boothId="b-1"
         code="AB3K7X"
         expiresAt={expiresAt}
         onClose={onClose}
@@ -40,7 +38,6 @@ describe('PairingModal', () => {
     const pastExpiry = new Date(Date.now() - 1000).toISOString();
     render(
       <PairingModal
-        boothId="b-1"
         code="AB3K7X"
         expiresAt={pastExpiry}
         onClose={onClose}

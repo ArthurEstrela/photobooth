@@ -3,7 +3,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { X, RefreshCw } from 'lucide-react';
 
 interface Props {
-  boothId: string;
   code: string;
   expiresAt: string;
   onClose: () => void;
