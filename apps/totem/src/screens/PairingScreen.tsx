@@ -14,6 +14,7 @@ export const PairingScreen: React.FC<Props> = ({ onPaired }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(true);
+  const scanningRef = useRef(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -22,6 +23,7 @@ export const PairingScreen: React.FC<Props> = ({ onPaired }) => {
 
   const handleCode = useCallback(async (code: string) => {
     if (loading) return;
+    scanningRef.current = false;
     setScanning(false);
     setLoading(true);
     setError(null);
@@ -32,6 +34,7 @@ export const PairingScreen: React.FC<Props> = ({ onPaired }) => {
       await onPaired({ boothId: data.boothId, boothToken: data.token });
     } catch {
       setError('Código inválido ou expirado. Gere um novo no painel.');
+      scanningRef.current = true;
       setScanning(true);
     } finally {
       setLoading(false);
@@ -56,7 +59,7 @@ export const PairingScreen: React.FC<Props> = ({ onPaired }) => {
       .catch(() => { if (active) setMode('manual'); });
 
     const tick = () => {
-      if (!active || !scanning) return;
+      if (!active || !scanningRef.current) return;
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -90,6 +93,7 @@ export const PairingScreen: React.FC<Props> = ({ onPaired }) => {
     setMode((m) => (m === 'scan' ? 'manual' : 'scan'));
     setError(null);
     setManualCode('');
+    scanningRef.current = true;
     setScanning(true);
   };
 
