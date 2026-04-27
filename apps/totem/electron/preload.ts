@@ -1,5 +1,3 @@
-// apps/totem/electron/preload.ts
-
 import { contextBridge, ipcRenderer } from 'electron';
 
 export interface PhotoData {
@@ -11,4 +9,10 @@ contextBridge.exposeInMainWorld('totemAPI', {
   printPhoto: () => ipcRenderer.send('print-photo'),
   saveOfflinePhoto: (data: PhotoData) => ipcRenderer.send('save-offline-photo', data),
   getPrinters: (): Promise<Array<{ name: string }>> => ipcRenderer.invoke('get-printers'),
+  getCredentials: (): Promise<{ boothId: string; boothToken: string } | null> =>
+    ipcRenderer.invoke('store-get-credentials'),
+  setCredentials: (data: { boothId: string; boothToken: string }): Promise<void> =>
+    ipcRenderer.invoke('store-set-credentials', data),
+  clearCredentials: (): Promise<void> =>
+    ipcRenderer.invoke('store-clear-credentials'),
 });

@@ -3,10 +3,17 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'path';
+import Store from 'electron-store';
 import { initDatabase, savePhotoOffline, IOfflinePhoto } from './database';
 import { startSyncEngine } from './sync-engine';
 
 let mainWindow: BrowserWindow | null = null;
+
+interface BoothStore {
+  boothId: string;
+  boothToken: string;
+}
+const store = new Store<BoothStore>();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -80,4 +87,22 @@ ipcMain.on('print-photo', (event) => {
 // 4. IPC Handlers: List Printers
 ipcMain.handle('get-printers', () => {
   return mainWindow ? mainWindow.webContents.getPrinters() : [];
+});
+
+// IPC Handlers: Booth credentials (electron-store)
+ipcMain.handle('store-get-credentials', () => {
+  const boothId = store.get('boothId');
+  const boothToken = store.get('boothToken');
+  if (!boothId || !boothToken) return null;
+  return { boothId, boothToken };
+});
+
+ipcMain.handle('store-set-credentials', (_event, data: BoothStore) => {
+  store.set('boothId', data.boothId);
+  store.set('boothToken', data.boothToken);
+});
+
+ipcMain.handle('store-clear-credentials', () => {
+  store.delete('boothId');
+  store.delete('boothToken');
 });
