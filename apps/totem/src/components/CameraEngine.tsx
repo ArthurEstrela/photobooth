@@ -24,7 +24,6 @@ export const CameraEngine: React.FC<Props> = ({
 }) => {
   const { videoRef, error, isLoading } = useWebcam();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayImageRef = useRef<HTMLImageElement>(null);
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [showCountdown, setShowCountdown] = useState(true);
 
@@ -83,17 +82,23 @@ export const CameraEngine: React.FC<Props> = ({
         const stripCanvas = document.createElement('canvas');
         const ctx = stripCanvas.getContext('2d')!;
 
-        const applyOverlay = () => {
-          if (
-            overlayUrl &&
-            overlayImageRef.current &&
-            overlayImageRef.current.complete &&
-            overlayImageRef.current.naturalWidth > 0
-          ) {
-            ctx.drawImage(overlayImageRef.current, 0, 0, stripCanvas.width, stripCanvas.height);
-          }
-          resolve(stripCanvas.toDataURL('image/jpeg', 0.95));
-        };
+        const applyOverlay = (): Promise<void> =>
+          new Promise((done) => {
+            if (!overlayUrl) { done(); return; }
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0, stripCanvas.width, stripCanvas.height);
+              done();
+            };
+            img.onerror = () => done();
+            img.src = overlayUrl;
+          });
+
+        const finish = () =>
+          applyOverlay().then(() =>
+            resolve(stripCanvas.toDataURL('image/jpeg', 0.95))
+          );
 
         if (photoCount === 1) {
           const img = new Image();
@@ -101,12 +106,11 @@ export const CameraEngine: React.FC<Props> = ({
             stripCanvas.width = img.width;
             stripCanvas.height = img.height;
             ctx.drawImage(img, 0, 0);
-            applyOverlay();
+            finish();
           };
           img.src = photos[0];
 
         } else if (photoCount === 2) {
-          // 1×2 vertical strip
           const imgs = [new Image(), new Image()];
           let loaded = 0;
           const onLoad = () => {
@@ -117,7 +121,7 @@ export const CameraEngine: React.FC<Props> = ({
             stripCanvas.height = h * 2;
             ctx.drawImage(imgs[0], 0, 0, w, h);
             ctx.drawImage(imgs[1], 0, h, w, h);
-            applyOverlay();
+            finish();
           };
           imgs[0].onload = onLoad;
           imgs[1].onload = onLoad;
@@ -138,7 +142,6 @@ export const CameraEngine: React.FC<Props> = ({
             const h = imgs[0].height;
 
             if (layout === 'strip') {
-              // 1×4 vertical tira — classic photobooth strip
               stripCanvas.width = w;
               stripCanvas.height = h * 4;
               imgs.forEach((img, i) => ctx.drawImage(img, 0, h * i, w, h));
@@ -151,7 +154,7 @@ export const CameraEngine: React.FC<Props> = ({
               ctx.drawImage(imgs[2] ?? imgs[0], 0, h, w, h);
               ctx.drawImage(imgs[3] ?? imgs[0], w, h, w, h);
             }
-            applyOverlay();
+            finish();
           };
           imgs.forEach((img) => (img.onload = onLoad));
         }
@@ -209,9 +212,6 @@ export const CameraEngine: React.FC<Props> = ({
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden">
       <canvas ref={canvasRef} className="hidden" />
-      {overlayUrl && (
-        <img ref={overlayImageRef} src={overlayUrl} className="hidden" alt="" crossOrigin="anonymous" />
-      )}
 
       <video
         ref={videoRef}
