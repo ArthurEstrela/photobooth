@@ -21,7 +21,9 @@ const mockConfig: BoothConfigDto = {
   offlineCredits: 5,
   demoSessionsPerHour: 3,
   cameraSound: true,
+  suspended: false,
   branding: { logoUrl: null, primaryColor: '#3b82f6', brandName: null },
+  devices: { selectedCamera: null, selectedPrinter: null, maintenancePin: null },
 };
 
 describe('useBoothMachine', () => {
@@ -80,8 +82,7 @@ describe('useBoothMachine', () => {
     expect(result.current.state).toBe(BoothState.IN_SESSION);
   });
 
-  it('transitions to DELIVERY and resets to IDLE after completeSession', async () => {
-    vi.useFakeTimers();
+  it('transitions to DELIVERY on completeSession and stays until resetToIdle', async () => {
     const { result } = renderHook(() =>
       useBoothMachine('booth-1', 'token-abc', mockConfig),
     );
@@ -91,10 +92,10 @@ describe('useBoothMachine', () => {
     });
 
     expect(result.current.state).toBe(BoothState.DELIVERY);
+    expect(result.current.stripDataUrl).toBe('data:strip');
 
-    act(() => vi.advanceTimersByTime(8000));
+    act(() => result.current.resetToIdle());
     expect(result.current.state).toBe(BoothState.IDLE);
-
-    vi.useRealTimers();
+    expect(result.current.stripDataUrl).toBe('');
   });
 });

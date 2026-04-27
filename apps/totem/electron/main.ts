@@ -72,12 +72,12 @@ ipcMain.on('save-offline-photo', (event, data: { sessionId: string; photoBase64:
 });
 
 // 3. IPC Handlers: Silent Print
-ipcMain.on('print-photo', (event) => {
+ipcMain.on('print-photo', (_event, _photoUrl: string) => {
   if (mainWindow) {
     mainWindow.webContents.print({
       silent: true,
       printBackground: true,
-      deviceName: '', // Default printer or specific name
+      deviceName: '',
     }, (success, errorType) => {
       if (!success) console.error('Printing failed:', errorType);
     });

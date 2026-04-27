@@ -6,7 +6,7 @@ export interface PhotoData {
 }
 
 contextBridge.exposeInMainWorld('totemAPI', {
-  printPhoto: () => ipcRenderer.send('print-photo'),
+  printPhoto: (photoUrl: string) => ipcRenderer.send('print-photo', photoUrl),
   saveOfflinePhoto: (data: PhotoData) => ipcRenderer.send('save-offline-photo', data),
   getPrinters: (): Promise<Array<{ name: string }>> => ipcRenderer.invoke('get-printers'),
   getCredentials: (): Promise<{ boothId: string; boothToken: string } | null> =>

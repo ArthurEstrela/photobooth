@@ -2,9 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { DeliveryScreen } from './DeliveryScreen';
 
-// Mock electronAPI
 beforeEach(() => {
-  (window as any).electronAPI = { printPhoto: vi.fn() };
+  (window as any).totemAPI = { printPhoto: vi.fn() };
 });
 
 describe('DeliveryScreen — free digital', () => {
@@ -31,7 +30,7 @@ describe('DeliveryScreen — free digital', () => {
         onDone={vi.fn()}
       />
     );
-    expect((window as any).electronAPI.printPhoto).toHaveBeenCalledWith('https://s3/photo.jpg');
+    expect((window as any).totemAPI.printPhoto).toHaveBeenCalledWith('https://s3/photo.jpg');
   });
 
   it('shows free download QR after print animation completes', async () => {

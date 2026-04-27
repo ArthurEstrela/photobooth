@@ -31,7 +31,7 @@ export const DeliveryScreen: React.FC<DeliveryScreenProps> = ({
   // 1. Fire print IPC immediately
   useEffect(() => {
     try {
-      (window as any).totemAPI?.printPhoto();
+      (window as any).totemAPI?.printPhoto(photoUrl);
     } catch {
       // Electron API not available in dev/test — ignore
     }

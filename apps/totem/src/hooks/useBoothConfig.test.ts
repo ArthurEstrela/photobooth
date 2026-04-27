@@ -21,7 +21,7 @@ describe('useBoothConfig', () => {
   it('fetches config and returns it', async () => {
     mockAxios.get = vi.fn().mockResolvedValue({ data: mockConfig });
 
-    const { result } = renderHook(() => useBoothConfig('booth-1', 'token-abc'));
+    const { result } = renderHook(() => useBoothConfig('booth-1', 'token-abc', vi.fn()));
 
     expect(result.current.isLoading).toBe(true);
 
@@ -48,7 +48,7 @@ describe('useBoothConfig', () => {
   it('sets error on fetch failure', async () => {
     mockAxios.get = vi.fn().mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useBoothConfig('booth-1', 'token-abc'));
+    const { result } = renderHook(() => useBoothConfig('booth-1', 'token-abc', vi.fn()));
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 

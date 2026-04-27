@@ -5,8 +5,8 @@ import { ITemplate } from '@packages/shared';
 import React from 'react';
 
 const mockTemplates: ITemplate[] = [
-  { id: 't1', name: 'Rosa', overlayUrl: '/rosa.png', photoCount: 1, tenantId: 'ten-1', createdAt: new Date(), updatedAt: new Date() },
-  { id: 't2', name: 'Azul', overlayUrl: '/azul.png', photoCount: 4, tenantId: 'ten-1', createdAt: new Date(), updatedAt: new Date() },
+  { id: 't1', name: 'Rosa', overlayUrl: '/rosa.png', photoCount: 1, layout: null, tenantId: 'ten-1', createdAt: new Date(), updatedAt: new Date() },
+  { id: 't2', name: 'Azul', overlayUrl: '/azul.png', photoCount: 4, layout: 'grid', tenantId: 'ten-1', createdAt: new Date(), updatedAt: new Date() },
 ];
 
 const videoRef = { current: null } as React.RefObject<HTMLVideoElement>;

@@ -1,24 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { JwtService } from '@nestjs/jwt';
 import { BoothGateway } from './booth.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardGateway } from './dashboard.gateway';
 
-const mockPrisma = {
-  booth: {
-    findFirst: jest.fn(),
-  },
-};
+const mockJwt = { verify: jest.fn() };
+const mockPrisma = { booth: { findUnique: jest.fn() } };
+const mockDashboard = { broadcastToTenant: jest.fn() };
 
-function makeClient(boothId: string, token: string, socketId = 'socket-abc') {
+function makeClient(token: string, socketId = 'socket-abc') {
   return {
     id: socketId,
-    handshake: {
-      query: { boothId },
-      headers: { authorization: `Bearer ${token}` },
-    },
+    data: {} as Record<string, any>,
+    handshake: { headers: { authorization: `Bearer ${token}` } },
     disconnect: jest.fn(),
   };
 }
+
+const VALID_PAYLOAD = { sub: 'booth-1', tenantId: 'tenant-1', role: 'booth' };
 
 describe('BoothGateway', () => {
   let gateway: BoothGateway;
@@ -27,40 +26,47 @@ describe('BoothGateway', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BoothGateway,
+        { provide: JwtService, useValue: mockJwt },
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: DashboardGateway, useValue: { broadcastToTenant: jest.fn() } },
+        { provide: DashboardGateway, useValue: mockDashboard },
       ],
     }).compile();
 
     gateway = module.get<BoothGateway>(BoothGateway);
     jest.clearAllMocks();
+    // Default: booth has no hardware config to sync
+    mockPrisma.booth.findUnique.mockResolvedValue({ id: 'booth-1', selectedCamera: null, selectedPrinter: null });
   });
 
   describe('handleConnection', () => {
-    it('deve registrar cabine com token válido', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({ id: 'booth-1', token: 'valid-token' });
-      const client = makeClient('booth-1', 'valid-token');
+    it('registers booth when JWT is valid', async () => {
+      mockJwt.verify.mockReturnValue(VALID_PAYLOAD);
+      const client = makeClient('valid-jwt');
       await gateway.handleConnection(client as any);
       expect(client.disconnect).not.toHaveBeenCalled();
+      expect(gateway.isBoothOnline('booth-1')).toBe(true);
     });
 
-    it('deve desconectar cabine com token inválido', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue(null);
-      const client = makeClient('booth-1', 'bad-token');
+    it('disconnects when JWT is invalid', async () => {
+      mockJwt.verify.mockImplementation(() => { throw new Error('invalid'); });
+      const client = makeClient('bad-token');
+      await gateway.handleConnection(client as any);
+      expect(client.disconnect).toHaveBeenCalled();
+      expect(gateway.isBoothOnline('booth-1')).toBe(false);
+    });
+
+    it('disconnects when role is not booth', async () => {
+      mockJwt.verify.mockReturnValue({ sub: 'user-1', tenantId: 'tenant-1', role: 'user' });
+      const client = makeClient('user-jwt');
       await gateway.handleConnection(client as any);
       expect(client.disconnect).toHaveBeenCalled();
     });
 
-    it('deve desconectar se boothId estiver ausente', async () => {
-      const client = makeClient('', 'some-token');
-      await gateway.handleConnection(client as any);
-      expect(client.disconnect).toHaveBeenCalled();
-    });
-
-    it('deve desconectar se Authorization header estiver ausente', async () => {
+    it('disconnects when Authorization header is absent', async () => {
       const client = {
-        id: 'socket-1',
-        handshake: { query: { boothId: 'booth-1' }, headers: {} },
+        id: 'sock-1',
+        data: {},
+        handshake: { headers: {} },
         disconnect: jest.fn(),
       };
       await gateway.handleConnection(client as any);
@@ -69,16 +75,14 @@ describe('BoothGateway', () => {
   });
 
   describe('handleDisconnect', () => {
-    it('deve remover cabine do mapa ao desconectar', async () => {
-      mockPrisma.booth.findFirst.mockResolvedValue({ id: 'booth-1', token: 'valid-token', tenantId: 'tenant-1' });
-      const client = makeClient('booth-1', 'valid-token', 'socket-xyz');
+    it('removes booth from map on disconnect', async () => {
+      mockJwt.verify.mockReturnValue(VALID_PAYLOAD);
+      const client = makeClient('valid-jwt', 'socket-xyz');
       await gateway.handleConnection(client as any);
-      gateway.handleDisconnect(client as any);
+      expect(gateway.isBoothOnline('booth-1')).toBe(true);
 
-      const serverMock = { to: jest.fn().mockReturnThis(), emit: jest.fn() };
-      (gateway as any).server = serverMock;
-      gateway.sendPaymentApproved('booth-1', {});
-      expect(serverMock.to).not.toHaveBeenCalled();
+      gateway.handleDisconnect(client as any);
+      expect(gateway.isBoothOnline('booth-1')).toBe(false);
     });
   });
 
@@ -92,42 +96,32 @@ describe('BoothGateway', () => {
     it('returns 0 when no booths are connected for tenant', () => {
       expect(gateway.getOnlineBoothCount('tenant-nobody')).toBe(0);
     });
+
+    it('counts only booths for the given tenant', async () => {
+      mockJwt.verify.mockReturnValue(VALID_PAYLOAD);
+      await gateway.handleConnection(makeClient('t1', 'sock-1') as any);
+      expect(gateway.getOnlineBoothCount('tenant-1')).toBe(1);
+      expect(gateway.getOnlineBoothCount('tenant-other')).toBe(0);
+    });
   });
 
-  describe('booth_status broadcast on connect', () => {
+  describe('booth_status broadcast', () => {
     it('broadcasts booth_status online when booth connects', async () => {
-      const mockDashboard = gateway['dashboardGateway'] as unknown as { broadcastToTenant: jest.Mock };
-      const mockPrismaLocal = gateway['prisma'] as unknown as { booth: { findFirst: jest.Mock } };
-      mockPrismaLocal.booth.findFirst.mockResolvedValueOnce({
-        id: 'booth-1', token: 'tok', tenantId: 'tenant-1',
-      });
-      const client = {
-        id: 'sock-1',
-        handshake: { query: { boothId: 'booth-1' }, headers: { authorization: 'Bearer tok' } },
-        disconnect: jest.fn(),
-      };
-      await gateway.handleConnection(client as any);
+      mockJwt.verify.mockReturnValue(VALID_PAYLOAD);
+      await gateway.handleConnection(makeClient('valid-jwt') as any);
       expect(mockDashboard.broadcastToTenant).toHaveBeenCalledWith(
-        'tenant-1', 'booth_status', { boothId: 'booth-1', online: true }
+        'tenant-1', 'booth_status', { boothId: 'booth-1', online: true },
       );
     });
 
     it('broadcasts booth_status offline when booth disconnects', async () => {
-      const mockDashboard = gateway['dashboardGateway'] as unknown as { broadcastToTenant: jest.Mock };
-      const mockPrismaLocal = gateway['prisma'] as unknown as { booth: { findFirst: jest.Mock } };
-      mockPrismaLocal.booth.findFirst.mockResolvedValueOnce({
-        id: 'booth-1', token: 'tok', tenantId: 'tenant-1',
-      });
-      const client = {
-        id: 'sock-1',
-        handshake: { query: { boothId: 'booth-1' }, headers: { authorization: 'Bearer tok' } },
-        disconnect: jest.fn(),
-      };
+      mockJwt.verify.mockReturnValue(VALID_PAYLOAD);
+      const client = makeClient('valid-jwt');
       await gateway.handleConnection(client as any);
       jest.clearAllMocks();
       gateway.handleDisconnect(client as any);
       expect(mockDashboard.broadcastToTenant).toHaveBeenCalledWith(
-        'tenant-1', 'booth_status', { boothId: 'booth-1', online: false }
+        'tenant-1', 'booth_status', { boothId: 'booth-1', online: false },
       );
     });
   });

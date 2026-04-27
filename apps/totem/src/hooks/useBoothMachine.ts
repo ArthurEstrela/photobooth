@@ -111,11 +111,10 @@ export function useBoothMachine(
         }
       }
 
-      // Electron IPC: save locally + trigger printer
+      // Electron IPC: save locally for offline resilience
       const totemAPI = (window as any).totemAPI;
-      if (sessionId && totemAPI?.saveOfflinePhoto && totemAPI?.printPhoto) {
+      if (sessionId && totemAPI?.saveOfflinePhoto) {
         totemAPI.saveOfflinePhoto({ sessionId, photoBase64: dataUrl });
-        totemAPI.printPhoto();
       }
 
       transition(BoothState.DELIVERY);
