@@ -6,6 +6,7 @@ import { useBoothEvent } from './hooks/useBoothEvent';
 import { useBoothMachine } from './hooks/useBoothMachine';
 import { useDeviceConfig } from './hooks/useDeviceConfig';
 import { useDeviceHeartbeat } from './hooks/useDeviceHeartbeat';
+import { useBoothCredentials } from './hooks/useBoothCredentials';
 import { CameraEngine } from './components/CameraEngine';
 import { IdleScreen } from './screens/IdleScreen';
 import { FrameSelectionScreen } from './screens/FrameSelectionScreen';
@@ -14,9 +15,7 @@ import { ProcessingScreen } from './screens/ProcessingScreen';
 import { DeliveryScreen } from './screens/DeliveryScreen';
 import { PinScreen } from './screens/PinScreen';
 import { MaintenanceScreen } from './screens/MaintenanceScreen';
-
-const BOOTH_ID    = import.meta.env.VITE_BOOTH_ID    ?? '';
-const BOOTH_TOKEN = import.meta.env.VITE_BOOTH_TOKEN ?? '';
+import { PairingScreen } from './screens/PairingScreen';
 
 function hexToRgbString(hex: string): string {
   const h = hex.replace('#', '');
@@ -27,13 +26,14 @@ function hexToRgbString(hex: string): string {
 }
 
 export default function App() {
+  const { boothId, boothToken, isLoading: credsLoading, setCredentials } = useBoothCredentials();
   const { videoRef } = useWebcam();
   const { deviceConfig, setDeviceConfig } = useDeviceConfig();
-  const { config }   = useBoothConfig(BOOTH_ID, BOOTH_TOKEN, setDeviceConfig);
-  const { event, templates, isLoading: eventLoading } = useBoothEvent(BOOTH_ID, BOOTH_TOKEN);
-  const machine = useBoothMachine(BOOTH_ID, BOOTH_TOKEN, config, setDeviceConfig);
+  const { config }   = useBoothConfig(boothId ?? '', boothToken ?? '', setDeviceConfig);
+  const { event, templates, isLoading: eventLoading } = useBoothEvent(boothId ?? '', boothToken ?? '');
+  const machine = useBoothMachine(boothId ?? '', boothToken ?? '', config, setDeviceConfig);
 
-  useDeviceHeartbeat(machine.socketRef, BOOTH_ID, deviceConfig);
+  useDeviceHeartbeat(machine.socketRef, boothId ?? '', deviceConfig);
 
   const isSuspended = config?.suspended === true;
 
@@ -74,6 +74,25 @@ export default function App() {
     machine.startPayment(event.id, selectedTemplateId, event.price);
   };
 
+  if (credsLoading) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-gray-950">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!boothId || !boothToken) {
+    return (
+      <PairingScreen
+        onPaired={async (creds) => {
+          await setCredentials(creds);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
   if (isSuspended) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950">
@@ -94,7 +113,6 @@ export default function App() {
   return (
     <div className="w-screen h-screen overflow-hidden bg-gray-950">
 
-      {/* ── IDLE ─────────────────────────────────────────────── */}
       {machine.state === BoothState.IDLE && !isSelectingFrame && (
         <IdleScreen
           brandName={config?.branding.brandName ?? null}
@@ -108,7 +126,6 @@ export default function App() {
         />
       )}
 
-      {/* ── SELECTING FRAME ───────────────────────────────────── */}
       {machine.state === BoothState.IDLE && isSelectingFrame && (
         <FrameSelectionScreen
           templates={templates}
@@ -119,7 +136,6 @@ export default function App() {
         />
       )}
 
-      {/* ── WAITING PAYMENT ───────────────────────────────────── */}
       {machine.state === BoothState.WAITING_PAYMENT && (
         <PaymentScreen
           amount={event?.price ?? 0}
@@ -128,7 +144,6 @@ export default function App() {
         />
       )}
 
-      {/* ── IN SESSION / COUNTDOWN / CAPTURING ───────────────── */}
       {(machine.state === BoothState.IN_SESSION ||
         machine.state === BoothState.COUNTDOWN ||
         machine.state === BoothState.CAPTURING) && (
@@ -143,12 +158,10 @@ export default function App() {
         />
       )}
 
-      {/* ── PROCESSING ────────────────────────────────────────── */}
       {machine.state === BoothState.PROCESSING && (
         <ProcessingScreen photoCount={event?.photoCount ?? 1} />
       )}
 
-      {/* ── DELIVERY ──────────────────────────────────────────── */}
       {machine.state === BoothState.DELIVERY && (
         <DeliveryScreen
           sessionId={machine.sessionId ?? ''}
@@ -163,7 +176,6 @@ export default function App() {
         />
       )}
 
-      {/* ── MAINTENANCE OVERLAYS (z-50, above everything) ─────── */}
       {showPin && (
         <PinScreen
           pinHash={deviceConfig.maintenancePinHash}
@@ -173,7 +185,8 @@ export default function App() {
       )}
       {showMaintenance && (
         <MaintenanceScreen
-          boothId={BOOTH_ID}
+          boothId={boothId}
+          boothToken={boothToken}
           socketRef={machine.socketRef}
           deviceConfig={deviceConfig}
           setDeviceConfig={setDeviceConfig}

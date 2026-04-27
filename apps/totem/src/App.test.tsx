@@ -42,6 +42,16 @@ vi.mock('./hooks/useDeviceHeartbeat', () => ({
   useDeviceHeartbeat: vi.fn(),
 }));
 
+vi.mock('./hooks/useBoothCredentials', () => ({
+  useBoothCredentials: () => ({
+    boothId: 'booth-test',
+    boothToken: 'token-test',
+    isLoading: false,
+    setCredentials: vi.fn(),
+    clearCredentials: vi.fn(),
+  }),
+}));
+
 describe('App — IDLE state', () => {
   it('renders brand name in idle screen', () => {
     render(<App />);
