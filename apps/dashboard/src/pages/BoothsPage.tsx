@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Plus, Settings2 } from 'lucide-react';
+import { Plus, Settings2, Link2, Link2Off } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Badge, Button, Drawer, Input, Select, Modal, Skeleton, EmptyState } from '../components/ui';
 import { useBooths, useCreateBooth, useSetBoothEvent, useUpdateBoothDevices } from '../hooks/api/useBooths';
 import { useEvents } from '../hooks/api/useEvents';
 import { DeviceStatusEvent } from '@packages/shared';
+import { usePairingCode } from '../hooks/api/usePairingCode';
+import { PairingModal } from '../components/PairingModal';
 
 async function hashPin(pin: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
@@ -27,6 +29,10 @@ export const BoothsPage: React.FC = () => {
   const createBooth = useCreateBooth();
   const setBoothEvent = useSetBoothEvent();
   const updateDevices = useUpdateBoothDevices();
+
+  const generatePairingCode = usePairingCode();
+  const [pairingBooth, setPairingBooth] = useState<any | null>(null);
+  const [pairingData, setPairingData] = useState<{ code: string; expiresAt: string } | null>(null);
 
   const [drawerBooth, setDrawerBooth] = useState<any | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -125,9 +131,14 @@ export const BoothsPage: React.FC = () => {
                     {booth.activeEvent?.name ?? 'Sem evento ativo'}
                   </p>
                 </div>
-                <Badge variant={booth.isOnline ? 'success' : 'neutral'}>
-                  {booth.isOnline ? 'Online' : 'Offline'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={booth.isOnline ? 'success' : 'neutral'}>
+                    {booth.isOnline ? 'Online' : 'Offline'}
+                  </Badge>
+                  <Badge variant={booth.pairedAt ? 'success' : 'neutral'}>
+                    {booth.pairedAt ? 'Pareado' : 'Não pareado'}
+                  </Badge>
+                </div>
               </div>
               <Button variant="secondary" size="sm" onClick={() => openDrawer(booth)}>
                 <Settings2 size={14} /> Configurar
@@ -268,6 +279,31 @@ export const BoothsPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* ── Pareamento ───────────────────────────────── */}
+              <div className="border-t border-gray-100 pt-4 space-y-2">
+                <p className="text-sm font-semibold text-gray-700">Pareamento</p>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  {drawerBooth.pairedAt ? (
+                    <><Link2 size={14} className="text-green-500" /> Pareado</>
+                  ) : (
+                    <><Link2Off size={14} /> Não pareado</>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setPairingBooth(drawerBooth);
+                    generatePairingCode.mutate(drawerBooth.id, {
+                      onSuccess: (data) => setPairingData(data),
+                    });
+                  }}
+                  loading={generatePairingCode.isPending}
+                >
+                  Gerar código de pareamento
+                </Button>
+              </div>
+
               {/* ── Credenciais ───────────────────────────────── */}
               <div className="border-t border-gray-100 pt-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-700">Credenciais para o Totem</p>
@@ -287,6 +323,20 @@ export const BoothsPage: React.FC = () => {
             </div>
           </div>
         </Drawer>
+      )}
+
+      {pairingBooth && pairingData && (
+        <PairingModal
+          boothId={pairingBooth.id}
+          code={pairingData.code}
+          expiresAt={pairingData.expiresAt}
+          onClose={() => { setPairingBooth(null); setPairingData(null); generatePairingCode.reset(); }}
+          onRegenerate={() => {
+            generatePairingCode.mutate(pairingBooth.id, {
+              onSuccess: (data) => setPairingData(data),
+            });
+          }}
+        />
       )}
     </div>
   );
