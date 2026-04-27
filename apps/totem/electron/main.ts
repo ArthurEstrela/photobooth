@@ -98,6 +98,7 @@ ipcMain.handle('store-get-credentials', () => {
 });
 
 ipcMain.handle('store-set-credentials', (_event, data: BoothStore) => {
+  if (!data?.boothId || !data?.boothToken) return;
   store.set('boothId', data.boothId);
   store.set('boothToken', data.boothToken);
 });

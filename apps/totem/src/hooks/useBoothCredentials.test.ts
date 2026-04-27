@@ -66,4 +66,14 @@ describe('useBoothCredentials', () => {
     expect(result.current.boothId).toBeNull();
     expect(result.current.boothToken).toBeNull();
   });
+
+  it('handles missing totemAPI gracefully (non-Electron env)', async () => {
+    delete (window as any).totemAPI;
+
+    const { result } = renderHook(() => useBoothCredentials());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.boothId).toBeNull();
+    expect(result.current.boothToken).toBeNull();
+  });
 });

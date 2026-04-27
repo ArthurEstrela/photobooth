@@ -24,13 +24,15 @@ export function useBoothCredentials(): UseBoothCredentials {
       setIsLoading(false);
       return;
     }
-    api.getCredentials().then((creds: Credentials | null) => {
-      if (creds) {
-        setBoothId(creds.boothId);
-        setBoothToken(creds.boothToken);
-      }
-      setIsLoading(false);
-    });
+    api.getCredentials()
+      .then((creds: Credentials | null) => {
+        if (creds) {
+          setBoothId(creds.boothId);
+          setBoothToken(creds.boothToken);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
   }, []);
 
   const setCredentials = useCallback(async (creds: Credentials) => {
