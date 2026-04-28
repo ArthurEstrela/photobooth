@@ -14,7 +14,29 @@
       "Bash(grep -v \"result\\\\|args\\\\|payload: Prisma\\\\.\\\\$\")",
       "Bash(grep -n '^\\\\s*photoCount\\\\|$TemplatePayload\\\\|TemplateScalarFieldEnum\\\\|scalars: {' c:/Users/arthu/OneDrive/Documentos/photobooth/node_modules/.prisma/client/index.d.ts)",
       "Bash(grep -n 'export type $TemplatePayload' c:/Users/arthu/OneDrive/Documentos/photobooth/node_modules/.prisma/client/index.d.ts)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Read(//c/Users/arthu/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/subagent-driven-development/**)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(npm test *)",
+      "Read(//c/Users/arthu/AppData/Local/Temp/claude/c--Users-arthu-OneDrive-Documentos-photobooth/f48f66a5-c4f8-4fbb-9259-f42efc9c4879/tasks/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest',d.get\\('scripts',{}\\)\\), indent=2\\)\\)\")",
+      "Bash(npm --prefix apps/api test -- mercadopago.adapter.spec.ts)",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(docker-compose up *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\)[0]; nets=d['NetworkSettings']['Networks']; [print\\(k, v['IPAddress']\\) for k,v in nets.items\\(\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\)[0]; nets=d['NetworkSettings']['Networks']; [print\\(k, v['IPAddress']\\) for k,v in nets.items\\(\\)]\")",
+      "Bash(docker stop *)",
+      "Bash(docker start *)",
+      "Bash(docker rm *)",
+      "Bash(PRISMA_MIGRATE_INTERACTIVE=true npx prisma migrate dev --name booth-pairing)",
+      "PowerShell(cd \"c:\\\\Users\\\\arthu\\\\OneDrive\\\\Documentos\\\\photobooth\\\\apps\\\\api\"; $env:DATABASE_URL = \"postgresql://postgres:postgres@localhost:5433/photobooth?schema=public\"; npx prisma migrate dev --name booth-pairing 2>&1)",
+      "Bash(cat .gitignore)",
+      "Bash(cat apps/api/.gitignore)",
+      "Bash(cat apps/api/prisma/.gitignore)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(cat apps/totem/vite.config.ts)",
+      "Bash(cat apps/totem/vitest.config.ts)",
+      "Bash(xargs grep *)"
     ]
   }
 }
